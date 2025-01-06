@@ -90,36 +90,34 @@ def write_local_data_for_ticker(ticker, df):
 def fetch_missing_data_for_ticker(ticker, existing_df, start_date, end_date=None, retries=3):
     """
     Given the existing DataFrame for the ticker, fetch only the missing data
-    from the last date in 'existing_df' + 1 day up to 'end_date' (default = today).
-    Returns the merged DataFrame (old + new).
+    from the start_date up to the end_date (default = today). Fills gaps in the existing data.
     """
-    # If there's no existing data, we start from config.START_DATE
+    # Determine the start and end dates for fetching
+    fetch_start = pd.to_datetime(start_date)
     if existing_df.empty:
-        fetch_start = pd.to_datetime(start_date)
+        earliest_date = None
     else:
-        last_date = existing_df.index.max()
-        # fetch from day after last_date
-        fetch_start = last_date + pd.Timedelta(days=1)
+        earliest_date = existing_df.index.min()
 
-    # By default, fetch up to today
-    if end_date is None:
-        fetch_end = pd.Timestamp.today().normalize()  # e.g. 2025-01-06
-    else:
-        fetch_end = pd.to_datetime(end_date)
+    # If existing_df has data but there's a gap before the earliest date
+    if earliest_date is not None and fetch_start < earliest_date:
+        fetch_start = pd.to_datetime(start_date)  # Ensure we fetch from the start_date
 
-    # If there's no new data to fetch (fetch_start > fetch_end), just return existing
+    fetch_end = pd.Timestamp.today().normalize() if end_date is None else pd.to_datetime(end_date)
+
+    # If there's no new data to fetch, return the existing data
     if fetch_start > fetch_end:
         logging.info(f"No missing data for {ticker} from {fetch_start.date()} to {fetch_end.date()}.")
         return existing_df
 
-    # Attempt to download new data
+    # Attempt to fetch missing data
     new_data = None
     for attempt in range(retries):
         try:
             data = yf.download(
                 ticker,
                 start=fetch_start,
-                end=fetch_end + timedelta(days=1),  # end is exclusive, so add 1 day
+                end=fetch_end + timedelta(days=1),  # end is exclusive
                 progress=False
             )
             if not data.empty:
