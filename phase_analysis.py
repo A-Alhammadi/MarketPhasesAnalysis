@@ -1,5 +1,3 @@
-# phase_analysis.py
-
 import logging
 import pandas as pd
 
@@ -79,4 +77,3 @@ def classify_phases(data_dict, ma_short=50, ma_long=200):
     df_phases = pd.DataFrame(rows, columns=col_names)
     df_phases.set_index("Date", inplace=True)
     return df_phases
-

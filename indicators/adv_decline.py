@@ -1,5 +1,6 @@
 # indicators/adv_decline.py
 
+import logging
 import pandas as pd
 
 def compute_adv_decline(data_dict):
