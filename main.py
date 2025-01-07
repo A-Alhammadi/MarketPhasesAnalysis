@@ -324,7 +324,6 @@ def merge_new_indicator_data(new_df, csv_path):
         logging.info(f"Writing new indicator data to {csv_path}.")
         new_df.to_csv(csv_path)
 
-
 def main():
     if not os.path.exists("results"):
         os.makedirs("results")
@@ -340,19 +339,21 @@ def main():
 
     # 2. For each ticker, read existing data, fetch only missing days, then write updated data.
     data_dict = {}
-    for ticker in tickers:
-        existing_data = read_local_data_for_ticker(ticker)
-        updated_data = fetch_missing_data_for_ticker(
-            ticker,
-            existing_data,
-            config.START_DATE,   # from config
-            config.END_DATE      # from config (or None)
-        )
-        if updated_data is not None and not updated_data.empty:
-            write_local_data_for_ticker(ticker, updated_data)
-            data_dict[ticker] = updated_data
-        else:
-            logging.warning(f"No valid data found (old or new) for {ticker}. Skipping.")
+    with ThreadPoolExecutor() as executor:
+        # Process each ticker in parallel
+        futures = {
+            executor.submit(
+                fetch_and_write_ticker_data, ticker, config.START_DATE, config.END_DATE
+            ): ticker for ticker in tickers
+        }
+        for future in futures:
+            ticker = futures[future]
+            try:
+                updated_data = future.result()
+                if updated_data is not None and not updated_data.empty:
+                    data_dict[ticker] = updated_data
+            except Exception as e:
+                logging.error(f"Error processing ticker {ticker}: {e}")
 
     # If we have no data at all, exit
     if not data_dict:
@@ -363,7 +364,7 @@ def main():
     # 3. Compute / merge Phase Classification
     df_phases = classify_phases(data_dict, ma_short=config.MA_SHORT, ma_long=config.MA_LONG)
     phase_csv = os.path.join("results", "phase_classification.csv")
-    merge_new_indicator_data(df_phases, phase_csv)
+    merge_new_indicator_data_in_parallel(df_phases, phase_csv)
 
     # Re-read the merged file for plotting
     df_phases_merged = pd.read_csv(phase_csv, parse_dates=True, index_col=0)
@@ -377,28 +378,37 @@ def main():
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # 4. Compute / merge Breadth Indicators
-    
-    # Advance-Decline
-    ad_line = compute_adv_decline(data_dict)
-    ad_csv = os.path.join("results", "adv_decline.csv")
-    merge_new_indicator_data(ad_line, ad_csv)
+    indicator_tasks = [
+        (compute_adv_decline, "adv_decline.csv"),
+        (compute_adv_decline_volume, "adv_decline_volume.csv"),
+        (compute_new_high_low, "new_high_low.csv"),
+        (compute_percent_above_ma, "percent_above_ma.csv"),
+    ]
 
-    # Advance-Decline Volume
-    ad_volume_line = compute_adv_decline_volume(data_dict)
-    ad_volume_csv = os.path.join("results", "adv_decline_volume.csv")
-    merge_new_indicator_data(ad_volume_line, ad_volume_csv)
-
-    # New High / New Low
-    nhnl_df = compute_new_high_low(data_dict, lookback=252)
-    nhnl_csv = os.path.join("results", "new_high_low.csv")
-    merge_new_indicator_data(nhnl_df, nhnl_csv)
-
-    # Percent Above MA
-    pct_ma_df = compute_percent_above_ma(data_dict, ma_window=config.MA_LONG)
-    pct_ma_csv = os.path.join("results", "percent_above_ma.csv")
-    merge_new_indicator_data(pct_ma_df, pct_ma_csv)
+    with ThreadPoolExecutor() as executor:
+        for compute_func, filename in indicator_tasks:
+            csv_path = os.path.join("results", filename)
+            result_df = compute_func(data_dict)
+            executor.submit(merge_new_indicator_data_in_parallel, result_df, csv_path)
 
     logging.info("All tasks completed successfully.")
+
+def fetch_and_write_ticker_data(ticker, start_date, end_date):
+    """
+    Fetch missing data for a ticker and write it to its corresponding CSV file.
+    """
+    existing_data = read_local_data_for_ticker(ticker)
+    updated_data = fetch_missing_data_for_ticker(ticker, existing_data, start_date, end_date)
+    if updated_data is not None and not updated_data.empty:
+        write_local_data_for_ticker(ticker, updated_data)
+        return updated_data
+    return None
+
+def merge_new_indicator_data_in_parallel(new_df, csv_path):
+    """
+    A wrapper for merge_new_indicator_data to enable multithreading.
+    """
+    merge_new_indicator_data(new_df, csv_path)
 
 if __name__ == "__main__":
     main()
