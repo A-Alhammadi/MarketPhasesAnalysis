@@ -1,15 +1,15 @@
-#main.py
-
 import os
 import sys
 import logging
 import time
 import requests
 import pandas as pd
+import pandas_market_calendars as mcal
 import yfinance as yf
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 import config
 from phase_analysis import classify_phases
@@ -22,10 +22,27 @@ from indicators.percent_above_ma import compute_percent_above_ma
 def setup_logging(log_path):
     logging.basicConfig(
         filename=log_path,
-        filemode='a',  # <- Use 'a' so it appends instead of overwriting
+        filemode='a',  # append instead of overwriting
         level=logging.DEBUG,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
+
+
+def save_plot(phase, df_phases_merged, filename):
+    """
+    Save a plot for a specific phase, only if the data has changed.
+    """
+    if not os.path.exists(filename):
+        logging.info(f"Generating plot for {phase}...")
+        plt.figure(figsize=(10, 6))
+        plt.plot(df_phases_merged.index, df_phases_merged[phase], label=phase)
+        plt.title(f"{phase} Phase % Over Time")
+        plt.xlabel("Date")
+        plt.ylabel("Percentage of Total Stocks")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(filename, dpi=100)  # Save with reduced DPI for faster saving
+        plt.close()
 
 
 def get_sp500_tickers():
@@ -48,10 +65,21 @@ def get_sp500_tickers():
         cols = row.find_all('td')
         if cols:
             ticker = cols[0].text.strip()
-            # Adjust for Yahoo Finance format
-            ticker = ticker.replace('.', '-')
+            ticker = ticker.replace('.', '-')  # Adjust for Yahoo Finance format
             tickers.append(ticker)
     return tickers
+
+import pandas_market_calendars as mcal
+
+def filter_trading_days(start, end):
+    """
+    Filters a date range to include only valid trading days (weekdays and market-open days).
+    Uses the NYSE market calendar by default.
+    """
+    nyse = mcal.get_calendar('NYSE')
+    schedule = nyse.schedule(start_date=start, end_date=end)
+    trading_days = schedule.index.normalize()  # Normalize to keep only the date part
+    return trading_days
 
 
 def read_local_data_for_ticker(ticker):
@@ -82,93 +110,218 @@ def read_local_data_for_ticker(ticker):
 def write_local_data_for_ticker(ticker, df):
     """
     Writes the updated DataFrame for a single ticker into results/data/{ticker}.csv
+    only if the data has changed.
     """
     data_dir = os.path.join("results", "data")
     os.makedirs(data_dir, exist_ok=True)
     file_path = os.path.join(data_dir, f"{ticker}.csv")
+
+    # Check if the file exists and is identical to the new data
+    if os.path.exists(file_path):
+        existing_df = pd.read_csv(file_path, parse_dates=True, index_col=0)
+        if existing_df.equals(df):  # If data is identical, skip writing
+            logging.info(f"{ticker}: No changes detected. Skipping file write.")
+            return
+
+    # Write to file if new or changed
+    logging.info(f"{ticker}: Writing updated data to file.")
     df.to_csv(file_path)
 
+def get_last_business_day(ref_date):
+    """
+    Returns the last business weekday (Mon-Fri) on or before ref_date.
+    """
+    while ref_date.weekday() >= 5:  # Saturday=5, Sunday=6
+        ref_date -= timedelta(days=1)
+    return ref_date
 
-def fetch_missing_data_for_ticker(ticker, existing_df, start_date, end_date=None, retries=3):
+def get_last_completed_trading_day():
     """
-    Given the existing DataFrame for the ticker, fetch only the missing data
-    from the start_date up to the end_date (default = today). Fills gaps in the existing data.
+    Returns the last trading day for which we expect full data.
+    If today is Saturday/Sunday, return last Friday.
+    If today is a weekday but before 16:00 local time, return yesterday (or last Friday if yesterday is weekend).
+    Otherwise, return today.
     """
-    # Determine the start and end dates for fetching
-    fetch_start = pd.to_datetime(start_date)
-    if existing_df.empty:
-        earliest_date = None
+    now = datetime.now()
+    
+    # If it's Saturday (5) or Sunday (6), move back to last Friday
+    while now.weekday() >= 5:  # Saturday=5, Sunday=6
+        now -= timedelta(days=1)
+
+    # If it's a weekday (Mon-Fri) but before 16:00 local time, go back one more day
+    if now.hour < 16:
+        now = now - timedelta(days=1)
+        # If that day is Saturday/Sunday, keep going back to Friday
+        while now.weekday() >= 5:
+            now -= timedelta(days=1)
+
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+def get_ticker_listing_date(ticker):
+    """
+    Fetches the earliest available trading date for a ticker using Yahoo Finance.
+    If no data is available, returns None.
+    """
+    try:
+        # Fetch minimal data to determine earliest available date
+        data = yf.download(ticker, period="max", interval="1d", progress=False)
+        if not data.empty:
+            return data.index.min()
+        else:
+            return None
+    except Exception as e:
+        logging.warning(f"Failed to fetch listing date for {ticker}: {e}")
+        return None
+
+def fetch_missing_data_for_ticker(ticker, existing_df, config_start_date, config_end_date=None, retries=3):
+    """
+    For a given ticker and existing DataFrame:
+      1) Determine missing date ranges based on config_start_date and config_end_date.
+      2) Only if needed, connect to Yahoo to fetch *just* the missing intervals.
+      3) Combine everything and return the final DataFrame.
+    """
+
+    # -------------------------------------------
+    # 1. Parse the user-specified start/end dates
+    # -------------------------------------------
+    start_dt = pd.to_datetime(config_start_date)
+    if config_end_date is None:
+        # Use last COMPLETED trading day so we don't try to fetch partial data for today
+        end_dt = get_last_completed_trading_day()
     else:
-        earliest_date = existing_df.index.min()
+        end_dt = pd.to_datetime(config_end_date)
+        # If the user picks a weekend day or a weekday morning, push it back to last business day or completed day
+        # (same logic as before, or you can apply get_last_completed_trading_day() conditionally)
+        end_dt = get_last_business_day(end_dt)
 
-    # If existing_df has data but there's a gap before the earliest date
-    if earliest_date is not None and fetch_start < earliest_date:
-        fetch_start = pd.to_datetime(start_date)  # Ensure we fetch from the start_date
 
-    fetch_end = pd.Timestamp.today().normalize() if end_date is None else pd.to_datetime(end_date)
+    # If there's no local data, we fetch everything in one shot.
+    if existing_df.empty:
+        logging.info(f"{ticker}: No local data. Will fetch from {start_dt.date()} to {end_dt.date()}.")
+        missing_intervals = [(start_dt, end_dt)]
+    else:
+        # Convert the index to datetime if it's not already
+        if not pd.api.types.is_datetime64_any_dtype(existing_df.index):
+            existing_df.index = pd.to_datetime(existing_df.index)
 
-    # If there's no new data to fetch, return the existing data
-    if fetch_start > fetch_end:
-        logging.info(f"No missing data for {ticker} from {fetch_start.date()} to {fetch_end.date()}.")
+        earliest_local = existing_df.index.min()
+        latest_local = existing_df.index.max()
+
+        missing_intervals = []
+
+        # 2a. Check if there's data missing at the beginning
+        if start_dt < earliest_local:
+            fetch_end = earliest_local - timedelta(days=1)
+            if start_dt <= fetch_end:
+                trading_days = filter_trading_days(start_dt, fetch_end)
+                if not trading_days.empty:
+                    missing_intervals.append((trading_days.min(), trading_days.max()))
+
+        if end_dt > latest_local:
+            fetch_start = latest_local + timedelta(days=1)
+            if fetch_start <= end_dt:
+                trading_days = filter_trading_days(fetch_start, end_dt)
+                if not trading_days.empty:
+                    missing_intervals.append((trading_days.min(), trading_days.max()))
+
+
+    # If no missing intervals, just return existing data
+    if not missing_intervals:
+        logging.info(f"{ticker}: No missing intervals. Skipping Yahoo download.")
         return existing_df
 
-    # Attempt to fetch missing data
-    new_data = None
-    for attempt in range(retries):
-        try:
-            data = yf.download(
-                ticker,
-                start=fetch_start,
-                end=fetch_end + timedelta(days=1),  # end is exclusive
-                progress=False
-            )
-            if not data.empty:
-                # Remove timezone info
-                data.index = pd.to_datetime(data.index).tz_localize(None)
-                # Flatten MultiIndex columns if necessary
-                if isinstance(data.columns, pd.MultiIndex):
-                    data.columns = [col[0] for col in data.columns]
-                new_data = data[["Open", "High", "Low", "Close", "Volume"]].copy()
+    logging.info(f"{ticker}: Missing intervals {missing_intervals}")
+
+    # -------------------------------------------------
+    # 3. Download data for each missing interval if any
+    # -------------------------------------------------
+    all_new_parts = []
+    for (m_start, m_end) in missing_intervals:
+        # If m_start > m_end, skip
+        if m_start > m_end:
+            continue
+
+        # Also skip purely weekend intervals if they fall exactly on weekend 
+        # (rare, but let's be consistent).
+        # We'll rely on yfinance to return empty if no trading days in that range.
+        success = False
+        new_data_part = pd.DataFrame()
+        for attempt in range(retries):
+            try:
+                # yfinance's `end` is exclusive, so add one day
+                data = yf.download(
+                    ticker,
+                    start=m_start,
+                    end=m_end + timedelta(days=1),
+                    progress=False
+                )
+                if not data.empty:
+                    # Clean up the data
+                    data.index = pd.to_datetime(data.index).tz_localize(None)
+                    if isinstance(data.columns, pd.MultiIndex):
+                        data.columns = [col[0] for col in data.columns]
+                    new_data_part = data[["Open", "High", "Low", "Close", "Volume"]].copy()
+                success = True
                 break
-            else:
-                logging.warning(f"No data returned for {ticker}. Attempt {attempt+1} of {retries}.")
-        except Exception as exc:
-            logging.error(f"Error fetching data for {ticker}: {exc}. Attempt {attempt+1} of {retries}.")
-            time.sleep(1)
+            except Exception as exc:
+                logging.error(f"{ticker}: Error fetching data ({m_start.date()} - {m_end.date()}): {exc}. Attempt {attempt+1} of {retries}")
+                time.sleep(1)
 
-    if new_data is None or new_data.empty:
-        logging.warning(f"Failed to fetch new data for {ticker} after {retries} attempts.")
+        if not success:
+            logging.warning(f"{ticker}: Failed to fetch new data for interval {m_start.date()} - {m_end.date()}")
+        else:
+            all_new_parts.append(new_data_part)
+
+    # ---------------------------------------
+    # 4. Combine old + new data, drop duplicates
+    # ---------------------------------------
+    if all_new_parts:
+        combined_new_data = pd.concat(all_new_parts)
+        combined = pd.concat([existing_df, combined_new_data])
+        combined = combined[~combined.index.duplicated(keep='last')]
+        combined.sort_index(inplace=True)
+        return combined
+    else:
         return existing_df
-
-    # Combine old + new, drop duplicates if any, sort
-    combined = pd.concat([existing_df, new_data])
-    combined = combined[~combined.index.duplicated(keep='last')]
-    combined.sort_index(inplace=True)
-    return combined
-
 
 def merge_new_indicator_data(new_df, csv_path):
     """
-    Reads an existing CSV of the same structure, merges with `new_df`, 
-    and writes back so old data is retained (and updated if needed) 
-    while new data is appended.
+    Efficiently merges `new_df` with existing data in `csv_path` by checking only the relevant date ranges.
+    Writes back to the file only if there are new rows to add.
     """
     if os.path.exists(csv_path):
         try:
+            # Load existing data
             old_df = pd.read_csv(csv_path, parse_dates=True, index_col=0)
-            # Outer join on the index
-            merged_df = old_df.combine_first(new_df)
-            # Overwrite old data with new where there's overlap
-            # (combine_first only fills NaNs, so to truly "update" we can do an update)
-            merged_df.update(new_df)
-            merged_df.sort_index(inplace=True)
-            merged_df.to_csv(csv_path)
+            
+            # Check if the new data overlaps with the existing data
+            min_new_date = new_df.index.min()
+            max_new_date = new_df.index.max()
+            min_old_date = old_df.index.min()
+            max_old_date = old_df.index.max()
+
+            # If new data is entirely within the existing range, skip writing
+            if min_new_date >= min_old_date and max_new_date <= max_old_date:
+                logging.info(f"No new dates in {csv_path}. Skipping file write.")
+                return
+
+            # Combine old and new data
+            merged_df = pd.concat([old_df, new_df]).drop_duplicates().sort_index()
+
+            # Write only if there are new rows
+            if not old_df.equals(merged_df):
+                logging.info(f"Writing updated indicator data to {csv_path}.")
+                merged_df.to_csv(csv_path)
+            else:
+                logging.info(f"No changes detected in {csv_path}. Skipping file write.")
         except Exception as e:
-            logging.error(f"Error merging indicator data from {csv_path}: {e}")
-            # Fallback: just write new data
+            logging.error(f"Error merging indicator data for {csv_path}: {e}")
+            # Fallback: write new data
+            logging.info(f"Fallback: Writing new data to {csv_path}.")
             new_df.to_csv(csv_path)
     else:
-        # If file doesn't exist, just write new data
+        # If file doesn't exist, write new data
+        logging.info(f"Writing new indicator data to {csv_path}.")
         new_df.to_csv(csv_path)
 
 
@@ -185,7 +338,7 @@ def main():
         logging.error("No tickers found. Exiting.")
         sys.exit(1)
 
-    # 2. For each ticker, read existing data, fetch only missing days, write updated.
+    # 2. For each ticker, read existing data, fetch only missing days, then write updated data.
     data_dict = {}
     for ticker in tickers:
         existing_data = read_local_data_for_ticker(ticker)
@@ -193,7 +346,7 @@ def main():
             ticker,
             existing_data,
             config.START_DATE,   # from config
-            config.END_DATE      # from config (or you can default to today's date)
+            config.END_DATE      # from config (or None)
         )
         if updated_data is not None and not updated_data.empty:
             write_local_data_for_ticker(ticker, updated_data)
@@ -209,25 +362,18 @@ def main():
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # 3. Compute / merge Phase Classification
     df_phases = classify_phases(data_dict, ma_short=config.MA_SHORT, ma_long=config.MA_LONG)
-
     phase_csv = os.path.join("results", "phase_classification.csv")
     merge_new_indicator_data(df_phases, phase_csv)
 
-    # Re-read the merged file to ensure we have the complete version for plotting
+    # Re-read the merged file for plotting
     df_phases_merged = pd.read_csv(phase_csv, parse_dates=True, index_col=0)
 
-    # Plot each phase with the merged data
-    for phase in ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]:
-        plt.figure(figsize=(10, 6))
-        plt.plot(df_phases_merged.index, df_phases_merged[phase], label=phase)
-        plt.title(f"{phase} Phase % Over Time")
-        plt.xlabel("Date")
-        plt.ylabel("Percentage of Total Stocks")
-        plt.legend()
-        plt.grid(True)
-        filename = f"phase_{phase.lower()}_timeseries.png"
-        plt.savefig(os.path.join("results", filename))
-        plt.close()
+    # Parallelize plot generation
+    phases = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
+    with ThreadPoolExecutor() as executor:
+        for phase in phases:
+            filename = os.path.join("results", f"phase_{phase.lower()}_timeseries.png")
+            executor.submit(save_plot, phase, df_phases_merged, filename)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # 4. Compute / merge Breadth Indicators
@@ -253,7 +399,6 @@ def main():
     merge_new_indicator_data(pct_ma_df, pct_ma_csv)
 
     logging.info("All tasks completed successfully.")
-
 
 if __name__ == "__main__":
     main()
