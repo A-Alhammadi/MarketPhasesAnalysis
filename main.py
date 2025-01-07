@@ -6,6 +6,8 @@ import requests
 import pandas as pd
 import pandas_market_calendars as mcal
 import yfinance as yf
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -27,23 +29,19 @@ def setup_logging(log_path):
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
-
 def save_plot(phase, df_phases_merged, filename):
     """
-    Save a plot for a specific phase, only if the data has changed.
+    Save a plot for a specific phase, recreating the plot if it might be outdated.
     """
-    if not os.path.exists(filename):
-        logging.info(f"Generating plot for {phase}...")
-        plt.figure(figsize=(10, 6))
-        plt.plot(df_phases_merged.index, df_phases_merged[phase], label=phase)
-        plt.title(f"{phase} Phase % Over Time")
-        plt.xlabel("Date")
-        plt.ylabel("Percentage of Total Stocks")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(filename, dpi=100)  # Save with reduced DPI for faster saving
-        plt.close()
-
+    plt.figure(figsize=(10, 6))
+    plt.plot(df_phases_merged.index, df_phases_merged[phase], label=phase)
+    plt.title(f"{phase} Phase % Over Time")
+    plt.xlabel("Date")
+    plt.ylabel("Percentage of Total Stocks")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(filename, dpi=100)  # Overwrite or create the plot file
+    plt.close()
 
 def get_sp500_tickers():
     """
@@ -369,13 +367,14 @@ def main():
     # Re-read the merged file for plotting
     df_phases_merged = pd.read_csv(phase_csv, parse_dates=True, index_col=0)
 
+    if df_phases_merged.empty or df_phases_merged.isnull().all().all():
+        logging.error("No valid data for phase distribution. Skipping plots.")
+    else:
     # Parallelize plot generation
-    phases = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
-    with ThreadPoolExecutor() as executor:
+        phases = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
         for phase in phases:
-            filename = os.path.join("results", f"phase_{phase.lower()}_timeseries.png")
-            executor.submit(save_plot, phase, df_phases_merged, filename)
-
+            filename = os.path.join("results", f"phase_{phase.lower()}_{datetime.now().strftime('%Y%m%d%H%M%S')}.png")
+            save_plot(phase, df_phases_merged, filename)
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # 4. Compute / merge Breadth Indicators
     indicator_tasks = [
