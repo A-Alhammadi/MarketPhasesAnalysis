@@ -1,5 +1,3 @@
-# main.py
-
 import os
 import sys
 import logging
@@ -11,6 +9,7 @@ import yfinance as yf
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
@@ -24,6 +23,15 @@ from indicators.adv_decline_volume import compute_adv_decline_volume
 from indicators.new_high_low import compute_new_high_low
 from indicators.percent_above_ma import compute_percent_above_ma
 
+# Additional indicators
+from indicators.extra_indicators import (
+    compute_mcclellan,
+    compute_index_of_fear_greed,
+    compute_trend_intensity_index,
+    compute_chaikin_volatility,
+    compute_chaikin_money_flow
+)
+from indicators.trin import compute_trin
 
 def setup_logging(log_path):
     logging.basicConfig(
@@ -31,6 +39,15 @@ def setup_logging(log_path):
         filemode='a',  # append instead of overwriting
         level=logging.DEBUG,
         format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+
+def get_db_connection():
+    return psycopg2.connect(
+        host=config.DB_HOST,
+        port=config.DB_PORT,
+        dbname=config.DB_NAME,
+        user=config.DB_USER,
+        password=config.DB_PASS
     )
 
 def create_tables():
@@ -42,13 +59,7 @@ def create_tables():
     conn = None
     cur = None
     try:
-        conn = psycopg2.connect(
-            host=config.DB_HOST,
-            port=config.DB_PORT,
-            dbname=config.DB_NAME,
-            user=config.DB_USER,
-            password=config.DB_PASS
-        )
+        conn = get_db_connection()
         cur = conn.cursor()
 
         create_price_table = """
@@ -80,7 +91,6 @@ def create_tables():
         cur.execute(create_indicator_table)
 
         conn.commit()
-
     except Exception as e:
         logging.error(f"Error creating tables: {e}")
     finally:
@@ -88,15 +98,6 @@ def create_tables():
             cur.close()
         if conn is not None:
             conn.close()
-
-def get_db_connection():
-    return psycopg2.connect(
-        host=config.DB_HOST,
-        port=config.DB_PORT,
-        dbname=config.DB_NAME,
-        user=config.DB_USER,
-        password=config.DB_PASS
-    )
 
 def read_ticker_data_from_db(ticker):
     """
@@ -121,13 +122,11 @@ def read_ticker_data_from_db(ticker):
         df.index = pd.to_datetime(df.index)
         df.index.name = None
         df.columns = ["Open", "High", "Low", "Close", "Volume"]
-
     except Exception as e:
         logging.error(f"Error reading data for {ticker} from DB: {e}")
     finally:
         if conn is not None:
             conn.close()
-
     return df
 
 def write_ticker_data_to_db(ticker, df):
@@ -142,7 +141,6 @@ def write_ticker_data_to_db(ticker, df):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-
         records = []
         for date_, row in df.iterrows():
             records.append((
@@ -167,15 +165,64 @@ def write_ticker_data_to_db(ticker, df):
         """
         psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
         conn.commit()
-
     except Exception as e:
         logging.error(f"Error writing data for {ticker} to DB: {e}")
-
     finally:
         if cur is not None:
             cur.close()
         if conn is not None:
             conn.close()
+
+def get_db_min_max_date():
+    """
+    Returns (min_date, max_date) across ALL tickers from the price_data table.
+    If table is empty, returns (None, None).
+    """
+    conn = None
+    min_date, max_date = None, None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT MIN(trade_date), MAX(trade_date) FROM price_data;")
+        row = cur.fetchone()
+        if row is not None:
+            min_date, max_date = row
+    except Exception as e:
+        logging.error(f"Error getting global min/max date from DB: {e}")
+    finally:
+        if conn:
+            conn.close()
+    return min_date, max_date
+
+def save_indicator_plots(indicator_name, df, output_dir="results"):
+    """
+    Save plots for each column in the indicator DataFrame (e.g. 'AdvanceDeclineLine',
+    'NHNL_Diff', etc.), automatically removing leading constant segments.
+    """
+    if df.empty:
+        return
+    for col in df.columns:
+        # Drop all-NaN
+        col_data = df[col].dropna()
+        if col_data.empty:
+            continue
+        # Remove leading constant portion so that the initial flat line is cut
+        first_val = col_data.iloc[0]
+        changed_mask = col_data.ne(first_val)
+        if changed_mask.any():
+            first_change_idx = changed_mask.idxmax()
+            col_data = col_data.loc[first_change_idx:]
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(col_data.index, col_data.values, label=col)
+        plt.title(f"{indicator_name} - {col}")
+        plt.xlabel("Date")
+        plt.ylabel(col)
+        plt.legend()
+        plt.grid(True)
+        filename = os.path.join(output_dir, f"{indicator_name}_{col}.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
 
 def save_plot(phase, df_phases_merged, filename):
     """
@@ -236,95 +283,6 @@ def get_last_completed_trading_day():
             now -= timedelta(days=1)
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-def fetch_missing_data_for_ticker(ticker, existing_df, config_start_date, config_end_date=None, retries=3):
-    """
-    Fetch only missing data for a ticker from Yahoo, flatten columns, drop 'Adj Close', etc.
-    """
-    start_dt = pd.to_datetime(config_start_date)
-    if config_end_date is None:
-        end_dt = get_last_completed_trading_day()
-    else:
-        end_dt = pd.to_datetime(config_end_date)
-        end_dt = get_last_business_day(end_dt)
-
-    if existing_df.empty:
-        logging.info(f"{ticker}: No DB data. Will fetch from {start_dt.date()} to {end_dt.date()}.")
-        missing_intervals = [(start_dt, end_dt)]
-    else:
-        earliest_local = existing_df.index.min()
-        latest_local = existing_df.index.max()
-        missing_intervals = []
-
-        if start_dt < earliest_local:
-            fetch_end = earliest_local - timedelta(days=1)
-            if start_dt <= fetch_end:
-                trading_days = filter_trading_days(start_dt, fetch_end)
-                if not trading_days.empty:
-                    missing_intervals.append((trading_days.min(), trading_days.max()))
-
-        if end_dt > latest_local:
-            fetch_start = latest_local + timedelta(days=1)
-            if fetch_start <= end_dt:
-                trading_days = filter_trading_days(fetch_start, end_dt)
-                if not trading_days.empty:
-                    missing_intervals.append((trading_days.min(), trading_days.max()))
-
-    if not missing_intervals:
-        logging.info(f"{ticker}: No missing intervals. Skipping Yahoo download.")
-        return existing_df
-
-    logging.info(f"{ticker}: Missing intervals {missing_intervals}")
-    all_new_parts = []
-
-    for (m_start, m_end) in missing_intervals:
-        if m_start > m_end:
-            continue
-        success = False
-        new_data_part = pd.DataFrame()
-
-        for attempt in range(retries):
-            try:
-                data = yf.download(
-                    ticker,
-                    start=m_start,
-                    end=m_end + timedelta(days=1),
-                    interval="1d",
-                    progress=False
-                )
-                if not data.empty:
-                    data.index = pd.to_datetime(data.index).tz_localize(None)
-
-                    # Flatten multi-level columns
-                    if isinstance(data.columns, pd.MultiIndex):
-                        data.columns = data.columns.droplevel(level=1)
-
-                    # Drop "Adj Close" if present
-                    if "Adj Close" in data.columns:
-                        data.drop(columns=["Adj Close"], inplace=True)
-
-                    # Keep only O/H/L/C/Volume
-                    new_data_part = data[["Open", "High", "Low", "Close", "Volume"]].copy()
-
-                success = True
-                break
-            except Exception as exc:
-                logging.error(f"{ticker}: Error fetching data ({m_start.date()} - {m_end.date()}): {exc} (attempt {attempt+1}/{retries})")
-                time.sleep(1)
-
-        if not success:
-            logging.warning(f"{ticker}: Failed to fetch data for {m_start.date()} - {m_end.date()}")
-        else:
-            all_new_parts.append(new_data_part)
-
-    if all_new_parts:
-        combined_new_data = pd.concat(all_new_parts)
-        combined = pd.concat([existing_df, combined_new_data])
-        combined = combined[~combined.index.duplicated(keep='last')]
-        combined.sort_index(inplace=True)
-        return combined
-    else:
-        return existing_df
-
 def merge_new_indicator_data(new_df, indicator_name):
     """
     Store indicator data in 'indicator_data' table, up to 5 numeric columns.
@@ -332,20 +290,17 @@ def merge_new_indicator_data(new_df, indicator_name):
     if new_df.empty:
         logging.info(f"No new data for indicator {indicator_name}.")
         return
-
     conn = None
     cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-
         columns = list(new_df.columns)
         columns = columns[:5]  # up to 5 columns
 
         for date_, row in new_df.iterrows():
             date_ = date_.date()
             values = row.values.tolist()
-
             values = values + [None]*(5 - len(values))  # pad if needed
             values = values[:5]
 
@@ -364,9 +319,7 @@ def merge_new_indicator_data(new_df, indicator_name):
                 cur.execute(insert_query, (indicator_name, date_, *values))
             except Exception as e:
                 logging.error(f"Error upserting indicator {indicator_name} for date {date_}: {e}")
-
         conn.commit()
-
     except Exception as e:
         logging.error(f"Error merging indicator data for {indicator_name}: {e}")
     finally:
@@ -375,16 +328,93 @@ def merge_new_indicator_data(new_df, indicator_name):
         if conn is not None:
             conn.close()
 
-def fetch_and_write_ticker_data(ticker, start_date, end_date):
+def fetch_and_write_all_tickers(tickers, start_date, end_date):
     """
-    Fetch missing data for a ticker, then write it to the DB.
+    Revised approach that uses the global DB min/max:
+      1) Check the global min_date, max_date in the DB.
+      2) If DB is empty, or there's a gap earlier or later, fetch that missing data from Yahoo for all tickers.
+      3) Write to DB.
+      4) Return a dictionary of DataFrames for each ticker (complete data).
     """
-    existing_data = read_ticker_data_from_db(ticker)
-    updated_data = fetch_missing_data_for_ticker(ticker, existing_data, start_date, end_date)
-    if updated_data is not None and not updated_data.empty:
-        write_ticker_data_to_db(ticker, updated_data)
-        return updated_data
-    return None
+    db_min, db_max = get_db_min_max_date()
+
+    cfg_start = pd.to_datetime(start_date) if start_date else None
+    if end_date is None:
+        cfg_end = get_last_completed_trading_day()
+    else:
+        cfg_end = pd.to_datetime(end_date)
+        cfg_end = get_last_business_day(cfg_end)
+
+    # If DB is empty, just fetch everything from cfg_start to cfg_end
+    if db_min is None or db_max is None:
+        logging.info("DB is empty, fetching entire date range for all tickers.")
+        data_dict = {}
+        for ticker in tickers:
+            df_new = yf.download(
+                ticker,
+                start=cfg_start,
+                end=cfg_end + timedelta(days=1),
+                interval="1d",
+                progress=False
+            )
+            if not df_new.empty:
+                if isinstance(df_new.columns, pd.MultiIndex):
+                    df_new.columns = df_new.columns.droplevel(level=1)
+                if "Adj Close" in df_new.columns:
+                    df_new.drop(columns=["Adj Close"], inplace=True)
+                df_new = df_new[["Open", "High", "Low", "Close", "Volume"]]
+                data_dict[ticker] = df_new.copy()
+
+        # Write all fetched data to DB
+        for ticker, df_ in data_dict.items():
+            df_.index = pd.to_datetime(df_.index)
+            df_.index.name = None
+            write_ticker_data_to_db(ticker, df_)
+
+        return data_dict
+    else:
+        # DB has data: fill only missing intervals
+        needed_intervals = []
+        if cfg_start and pd.Timestamp(cfg_start) < pd.Timestamp(db_min):
+            needed_intervals.append((cfg_start, pd.Timestamp(db_min) - pd.Timedelta(days=1)))
+        if pd.Timestamp(cfg_end) > pd.Timestamp(db_max):
+            needed_intervals.append((pd.Timestamp(db_max) + pd.Timedelta(days=1), cfg_end))
+
+        data_dict = {}
+        # First load existing data from DB for each ticker
+        with ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(read_ticker_data_from_db, ticker): ticker
+                for ticker in tickers
+            }
+            for future in futures:
+                tck = futures[future]
+                try:
+                    existing_data = future.result()
+                    # For each missing interval, fetch from Yahoo
+                    for (mstart, mend) in needed_intervals:
+                        if mstart <= mend:
+                            fetched_part = yf.download(
+                                tck,
+                                start=mstart,
+                                end=mend + timedelta(days=1),
+                                interval="1d",
+                                progress=False
+                            )
+                            if not fetched_part.empty:
+                                if isinstance(fetched_part.columns, pd.MultiIndex):
+                                    fetched_part.columns = fetched_part.columns.droplevel(level=1)
+                                if "Adj Close" in fetched_part.columns:
+                                    fetched_part.drop(columns=["Adj Close"], inplace=True)
+                                fetched_part = fetched_part[["Open", "High", "Low", "Close", "Volume"]]
+                                existing_data = pd.concat([existing_data, fetched_part])
+
+                    existing_data.sort_index(inplace=True)
+                    write_ticker_data_to_db(tck, existing_data)
+                    data_dict[tck] = existing_data
+                except Exception as e:
+                    logging.error(f"Error fetching data for {tck}: {e}")
+        return data_dict
 
 def main():
     if not os.path.exists("results"):
@@ -393,60 +423,72 @@ def main():
     log_path = os.path.join("results", "logs.txt")
     setup_logging(log_path)
 
-    # 1) Create tables in PostgreSQL (safe to call every time)
     create_tables()
 
-    # 2) Get S&P 500 tickers
     tickers = get_sp500_tickers()
     if not tickers:
         logging.error("No tickers found. Exiting.")
         sys.exit(1)
 
-    # 3) Read existing data from DB for each ticker, fetch missing from Yahoo, store updated
-    data_dict = {}
-    with ThreadPoolExecutor() as executor:
-        futures = {
-            executor.submit(fetch_and_write_ticker_data, ticker, config.START_DATE, config.END_DATE): ticker
-            for ticker in tickers
-        }
-        for future in futures:
-            ticker = futures[future]
-            try:
-                updated_data = future.result()
-                if updated_data is not None and not updated_data.empty:
-                    data_dict[ticker] = updated_data
-            except Exception as e:
-                logging.error(f"Error processing ticker {ticker}: {e}")
-
+    # Fetch or fill missing data based on DB's global min/max + config
+    data_dict = fetch_and_write_all_tickers(
+        tickers=tickers,
+        start_date=config.START_DATE,
+        end_date=config.END_DATE
+    )
     if not data_dict:
-        logging.error("No valid data for any tickers. Exiting.")
+        logging.error("No data fetched or found in DB. Exiting.")
         sys.exit(1)
 
-    # 4) Compute / merge Phase Classification
+    # Phase classification
+    from phase_analysis import classify_phases
     df_phases = classify_phases(data_dict, ma_short=config.MA_SHORT, ma_long=config.MA_LONG)
     merge_new_indicator_data(df_phases, "phase_classification")
 
-    # Plot phase distribution
-    if df_phases.empty or df_phases.isnull().all().all():
-        logging.error("No valid data for phase distribution. Skipping plots.")
-    else:
+    # Phase plots
+    if not df_phases.empty:
         phases = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
         for phase in phases:
             filename = os.path.join("results", f"phase_{phase.lower()}.png")
             save_plot(phase, df_phases, filename)
+    else:
+        logging.error("No valid phase data to plot.")
 
-    # 5) Compute / merge Breadth Indicators
+    # Indicators
+    from indicators.adv_decline import compute_adv_decline
+    from indicators.adv_decline_volume import compute_adv_decline_volume
+    from indicators.new_high_low import compute_new_high_low
+    from indicators.percent_above_ma import compute_percent_above_ma
+
+    # Additional
+    from indicators.extra_indicators import (
+        compute_mcclellan,
+        compute_index_of_fear_greed,
+        compute_trend_intensity_index,
+        compute_chaikin_volatility,
+        compute_chaikin_money_flow
+    )
+    from indicators.trin import compute_trin
+
     indicator_tasks = [
         (compute_adv_decline, "adv_decline"),
         (compute_adv_decline_volume, "adv_decline_volume"),
         (compute_new_high_low, "new_high_low"),
         (compute_percent_above_ma, "percent_above_ma"),
+        (compute_mcclellan, "mcclellan"),
+        (compute_index_of_fear_greed, "fear_greed"),
+        (compute_trend_intensity_index, "trend_intensity_index"),
+        (compute_chaikin_volatility, "chaikin_volatility"),
+        (compute_chaikin_money_flow, "chaikin_money_flow"),
+        (compute_trin, "trin"),
     ]
 
     with ThreadPoolExecutor() as executor:
         for compute_func, indicator_name in indicator_tasks:
             result_df = compute_func(data_dict)
             executor.submit(merge_new_indicator_data, result_df, indicator_name)
+            # Save a plot for each column in the DataFrame
+            executor.submit(save_indicator_plots, indicator_name, result_df, "results")
 
     logging.info("All tasks completed successfully.")
 
