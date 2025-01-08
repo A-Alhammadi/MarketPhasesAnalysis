@@ -18,6 +18,9 @@ def compute_new_high_low(data_dict, lookback=252):
 
     rolling_info = {}
     for ticker, df in data_dict.items():
+        if "Close" not in df.columns:
+            logging.warning(f"Ticker {ticker} is missing 'Close' column. Skipping.")
+            continue
         df_sorted = df.sort_index()
         df_sorted["RollingMax"] = df_sorted["Close"].rolling(window=lookback, min_periods=1).max()
         df_sorted["RollingMin"] = df_sorted["Close"].rolling(window=lookback, min_periods=1).min()
@@ -31,12 +34,14 @@ def compute_new_high_low(data_dict, lookback=252):
             if date in df_.index:
                 idx = df_.index.get_loc(date)
                 row = df_.iloc[idx]
-                if np.isclose(row["Close"], row["RollingMax"]):
+                if pd.isna(row["Close"]) or pd.isna(row["RollingMax"]) or pd.isna(row["RollingMin"]):
+                    continue
+                if row["Close"] == row["RollingMax"]:
                     new_high_count += 1
-                if np.isclose(row["Close"], row["RollingMin"]):
+                if row["Close"] == row["RollingMin"]:
                     new_low_count += 1
         nhnl_diff = new_high_count - new_low_count
-        nhnl_ratio = (new_high_count / new_low_count) if new_low_count else np.nan
+        nhnl_ratio = (new_high_count / new_low_count) if new_low_count else None
         output.append([date, new_high_count, new_low_count, nhnl_diff, nhnl_ratio])
 
     nhnl_df = pd.DataFrame(
@@ -45,3 +50,4 @@ def compute_new_high_low(data_dict, lookback=252):
     )
     nhnl_df.set_index("Date", inplace=True)
     return nhnl_df
+
