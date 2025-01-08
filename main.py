@@ -581,7 +581,6 @@ def save_indicator_plots(indicator_name, df):
         plt.savefig(filename, dpi=100)
         plt.close()
 
-
 def main():
     """
     Main workflow:
@@ -617,6 +616,7 @@ def main():
     # If NO new data => ONLY create missing plots if they do not exist
     if not new_data_found:
         logging.info("No new data was fetched. Creating missing plots (if any) then exiting.")
+        
         # Check and create missing phase plots
         for phase in phases:
             plot_path = os.path.join(config.RESULTS_DIR, f"phase_{phase.lower()}.png")
@@ -667,10 +667,14 @@ def main():
     ]
 
     with ThreadPoolExecutor() as executor:
+        futures = []
         for compute_func, indicator_name in indicator_tasks:
             result_df = compute_func(data_dict)
-            executor.submit(merge_new_indicator_data, result_df, indicator_name)
-            executor.submit(save_indicator_plots, indicator_name, result_df)
+            futures.append(executor.submit(merge_new_indicator_data, result_df, indicator_name))
+            futures.append(executor.submit(save_indicator_plots, indicator_name, result_df))
+        # Ensure all tasks are completed before exiting
+        for future in futures:
+            future.result()
 
     logging.info("All tasks completed successfully.")
 

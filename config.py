@@ -13,7 +13,7 @@ DB_PASS = "mypassword"
 START_DATE = "2020-01-01"
 END_DATE = None
 # e.g., "1d", "1wk", "1mo"
-DATA_FETCH_INTERVAL = "1d"
+DATA_FETCH_INTERVAL = "1mo"
 
 # ====================
 # MOVING AVERAGE
