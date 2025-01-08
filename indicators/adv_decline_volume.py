@@ -3,16 +3,16 @@
 import pandas as pd
 
 def compute_adv_decline_volume(data_dict):
-    # Compute the Advance-Decline Volume Line (Up/Down Volume Line).
-    # If a stock closes up vs previous day, add its volume; if down, subtract.
-    # Returns DataFrame [Date, AdvDeclVolumeLine]
+    """
+    Compute the Advance-Decline Volume Line (Up/Down Volume Line).
+    If a stock closes up vs previous day, add its volume; if down, subtract.
+    Returns DataFrame [Date, AdvDeclVolumeLine].
+    """
     all_dates = sorted(
-        list(
-            set(
-                date
-                for df in data_dict.values()
-                for date in df.index
-            )
+        set(
+            date
+            for df in data_dict.values()
+            for date in df.index
         )
     )
     volume_line = []

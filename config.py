@@ -1,9 +1,17 @@
 # config.py
 
-# Basic settings for data retrieval
-START_DATE = "2022-01-01"
+# ~~~ POSTGRESQL SETTINGS ~~~
+DB_HOST = "localhost"
+DB_PORT = "5432"
+DB_NAME = "mydatabase"
+DB_USER = "myuser"
+DB_PASS = "mypassword"
+
+# ~~~ DATA RETRIEVAL SETTINGS ~~~
+# Change these to fetch more historical data
+START_DATE = "2020-01-01"
 END_DATE   = None
 
-# Moving average windows
+# ~~~ MOVING AVERAGE WINDOWS ~~~
 MA_SHORT = 50
 MA_LONG = 200

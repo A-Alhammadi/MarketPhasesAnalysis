@@ -4,26 +4,23 @@ import pandas as pd
 import numpy as np
 
 def compute_new_high_low(data_dict, lookback=252):
-    # Compute how many tickers made a new ~52-week high or low each day.
-    # Returns DataFrame [Date, NewHighCount, NewLowCount, NHNL_Diff, NHNL_Ratio]
+    """
+    Compute how many tickers made a new ~52-week high or low each day.
+    Returns DataFrame [Date, NewHighCount, NewLowCount, NHNL_Diff, NHNL_Ratio].
+    """
     all_dates = sorted(
-        list(
-            set(
-                date
-                for df in data_dict.values()
-                for date in df.index
-            )
+        set(
+            date
+            for df in data_dict.values()
+            for date in df.index
         )
     )
+
     rolling_info = {}
     for ticker, df in data_dict.items():
         df_sorted = df.sort_index()
-        df_sorted["RollingMax"] = df_sorted["Close"].rolling(
-            window=lookback, min_periods=1
-        ).max()
-        df_sorted["RollingMin"] = df_sorted["Close"].rolling(
-            window=lookback, min_periods=1
-        ).min()
+        df_sorted["RollingMax"] = df_sorted["Close"].rolling(window=lookback, min_periods=1).max()
+        df_sorted["RollingMin"] = df_sorted["Close"].rolling(window=lookback, min_periods=1).min()
         rolling_info[ticker] = df_sorted
 
     output = []
@@ -41,6 +38,7 @@ def compute_new_high_low(data_dict, lookback=252):
         nhnl_diff = new_high_count - new_low_count
         nhnl_ratio = (new_high_count / new_low_count) if new_low_count else np.nan
         output.append([date, new_high_count, new_low_count, nhnl_diff, nhnl_ratio])
+
     nhnl_df = pd.DataFrame(
         output,
         columns=["Date", "NewHighCount", "NewLowCount", "NHNL_Diff", "NHNL_Ratio"]

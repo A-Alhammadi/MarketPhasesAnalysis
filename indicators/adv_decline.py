@@ -8,10 +8,8 @@ def compute_adv_decline(data_dict):
     Compute the Advance-Decline Line for all tickers combined.
     """
     all_dates = sorted(
-        list(
-            set(
-                date for df in data_dict.values() for date in df.index
-            )
+        set(
+            date for df in data_dict.values() for date in df.index
         )
     )
     ad_line = []
