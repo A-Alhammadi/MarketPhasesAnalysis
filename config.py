@@ -18,8 +18,8 @@ DATA_FETCH_INTERVAL = "1mo"
 # ====================
 # MOVING AVERAGE
 # ====================
-MA_SHORT = 50
-MA_LONG = 200
+MA_SHORT = 6
+MA_LONG = 12
 
 # ====================
 # PLOT SETTINGS

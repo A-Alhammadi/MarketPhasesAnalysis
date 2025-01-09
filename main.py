@@ -1,3 +1,5 @@
+#main.py
+
 import os
 import sys
 import logging
@@ -231,7 +233,6 @@ def fetch_and_write_all_tickers(tickers, start_date, end_date):
         if pd.Timestamp(cfg_start) >= pd.Timestamp(db_min) and pd.Timestamp(cfg_end) <= pd.Timestamp(db_max):
             logging.info("Database covers the entire date range; skipping Yahoo Finance fetch.")
             data_dict = {}
-            # Load data for each ticker from DB
             with ThreadPoolExecutor() as executor:
                 futures = {
                     executor.submit(read_ticker_data_from_db, t): t
@@ -275,23 +276,30 @@ def fetch_and_write_all_tickers(tickers, start_date, end_date):
                 existing_data = future.result()
                 for (mstart, mend) in needed_intervals:
                     if mstart <= mend:
+                        # --------------------------
+                        #  Use config.DATA_FETCH_INTERVAL
+                        # --------------------------
                         fetched_part = yf.download(
                             tck,
                             start=mstart,
                             end=mend + timedelta(days=1),
-                            interval=config.DATA_FETCH_INTERVAL,
+                            interval=config.DATA_FETCH_INTERVAL,  # <--- IMPORTANT
                             progress=False
                         )
                         if not fetched_part.empty:
+                            # Flatten multi-index if needed
                             if isinstance(fetched_part.columns, pd.MultiIndex):
                                 fetched_part.columns = fetched_part.columns.droplevel(level=1)
+                            # Drop 'Adj Close'
                             if "Adj Close" in fetched_part.columns:
                                 fetched_part.drop(columns=["Adj Close"], inplace=True)
 
                             needed_cols = ["Open", "High", "Low", "Close", "Volume"]
                             for col in needed_cols:
                                 if col not in fetched_part.columns:
-                                    logging.warning(f"Ticker {tck} missing {col} after fetch. Skipping chunk.")
+                                    logging.warning(
+                                        f"Ticker {tck} missing {col} after fetch. Skipping chunk."
+                                    )
                                     continue
 
                             fetched_part = fetched_part[needed_cols]
@@ -308,7 +316,6 @@ def fetch_and_write_all_tickers(tickers, start_date, end_date):
                 logging.error(f"Error processing ticker {tck}: {e}")
 
     return data_dict, new_data_found
-
 
 def get_sp500_tickers():
     """
@@ -492,8 +499,11 @@ def check_and_save_missing_indicator_plots(indicator_name, df):
 
 def save_phase_plots(phases, df_phases):
     """
-    Normal function that always generates the plots (regardless of existing files).
+    Save plots for individual phases if config.PLOT_PHASES[phase] = True,
+    and also an 'all phases' plot if config.PLOT_PHASES["AllPhases"] = True.
     """
+    # Debug: Ensure index matches monthly intervals
+    logging.debug(f"Phase DataFrame index: {df_phases.index}")
 
     if config.PLOT_PHASES.get("AllPhases", False):
         plt.figure(figsize=(12, 8))
