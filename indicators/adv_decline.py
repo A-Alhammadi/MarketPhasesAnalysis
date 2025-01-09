@@ -24,7 +24,15 @@ def compute_adv_decline(data_dict):
                 continue
 
             if date in df.index:
+                # Fix: Get only the first match if duplicates exist
+                rows = df.loc[date]
+                if isinstance(rows, pd.DataFrame):
+                    rows = rows.iloc[0]
+
                 idx = df.index.get_loc(date)
+                if isinstance(idx, slice):  # Handle slice
+                    idx = idx.start
+
                 if idx > 0:
                     prev_close = df.iloc[idx - 1]["Close"]
                     curr_close = df.iloc[idx]["Close"]
@@ -42,3 +50,4 @@ def compute_adv_decline(data_dict):
     ad_df = pd.DataFrame(ad_line, columns=["Date", "AdvanceDeclineLine"])
     ad_df.set_index("Date", inplace=True)
     return ad_df
+

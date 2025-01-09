@@ -22,7 +22,14 @@ def compute_adv_decline_volume(data_dict):
         down_volume = 0
         for ticker, df in data_dict.items():
             if date in df.index:
+                rows = df.loc[date]
+                if isinstance(rows, pd.DataFrame):
+                    rows = rows.iloc[0]
+
                 idx = df.index.get_loc(date)
+                if isinstance(idx, slice):  # Handle slice
+                    idx = idx.start
+
                 if idx > 0:
                     prev_close = df.iloc[idx - 1]["Close"]
                     curr_close = df.iloc[idx]["Close"]

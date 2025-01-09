@@ -1,29 +1,18 @@
-# phase_analysis.py
-
-import logging
-import pandas as pd
-
 def classify_phases(data_dict, ma_short=50, ma_long=200):
     """
-    Classify each ticker's monthly state into phases and compute percentage
-    distribution of each phase across all tickers on each month.
-
-    Args:
-        data_dict (dict): Dictionary of DataFrames containing ticker data.
-        ma_short (int): Short moving average window.
-        ma_long (int): Long moving average window.
-
-    Returns:
-        pd.DataFrame: DataFrame containing phase percentages for all tickers on each month.
+    Classify each ticker's daily state into phases, then compute a percentage
+    distribution of each phase across all tickers on each date.
     """
+    import logging
+    import pandas as pd
+
     for ticker, df in data_dict.items():
         if df.empty:
             logging.warning(f"Ticker {ticker} has empty data. Skipping.")
             continue
 
-        # Ensure sorted index and resample to monthly
+        # Ensure the data is sorted
         df.sort_index(inplace=True)
-        df = df.resample("M").last()  # Take the last value of each month
 
         # Check for required 'Close' column
         if "Close" not in df.columns:
@@ -34,11 +23,10 @@ def classify_phases(data_dict, ma_short=50, ma_long=200):
         df[f"SMA_{ma_short}"] = df["Close"].rolling(window=ma_short, min_periods=1).mean()
         df[f"SMA_{ma_long}"] = df["Close"].rolling(window=ma_long, min_periods=1).mean()
 
-        # Remove duplicate indices (shouldn't exist after resampling)
+        # Remove duplicate indices (keep the first occurrence for each date)
         df = df[~df.index.duplicated(keep="first")]
-        data_dict[ticker] = df  # Save back to the dictionary
 
-    # Gather all monthly dates present in any DataFrame
+    # Gather all dates present in any DataFrame
     all_dates = sorted(
         set(
             date
@@ -67,39 +55,41 @@ def classify_phases(data_dict, ma_short=50, ma_long=200):
 
         for date in df.index:
             try:
+                # Retrieve scalar values for the current date
                 sma_short_val = df.loc[date, f"SMA_{ma_short}"]
                 sma_long_val = df.loc[date, f"SMA_{ma_long}"]
                 price = df.loc[date, "Close"]
+
+                # Ensure they are scalar values (convert Series to scalar if necessary)
+                if isinstance(sma_short_val, pd.Series):
+                    sma_short_val = sma_short_val.iloc[0]
+                if isinstance(sma_long_val, pd.Series):
+                    sma_long_val = sma_long_val.iloc[0]
+                if isinstance(price, pd.Series):
+                    price = price.iloc[0]
+
+                # Skip rows with NaN values
+                if pd.isna(sma_short_val) or pd.isna(sma_long_val) or pd.isna(price):
+                    continue
+
+                # Basic logic for phases
+                if (sma_short_val > sma_long_val) and (price > sma_short_val) and (price > sma_long_val):
+                    classification_counts[date]["Bullish"] += 1
+                elif (sma_short_val > sma_long_val) and (price < sma_short_val):
+                    if price < sma_long_val:
+                        classification_counts[date]["Distribution"] += 1
+                    else:
+                        classification_counts[date]["Caution"] += 1
+                elif (sma_short_val < sma_long_val) and (price < sma_short_val) and (price < sma_long_val):
+                    classification_counts[date]["Bearish"] += 1
+                elif (sma_short_val < sma_long_val) and (price > sma_short_val):
+                    if price > sma_long_val:
+                        classification_counts[date]["Accumulation"] += 1
+                    else:
+                        classification_counts[date]["Recuperation"] += 1
+
             except KeyError:
                 continue  # Missing data for this date
-
-            # Ensure scalar values for comparison
-            if isinstance(sma_short_val, pd.Series):
-                sma_short_val = sma_short_val.iloc[0]
-            if isinstance(sma_long_val, pd.Series):
-                sma_long_val = sma_long_val.iloc[0]
-            if isinstance(price, pd.Series):
-                price = price.iloc[0]
-
-            # Skip rows with NaN values
-            if pd.isna(sma_short_val) or pd.isna(sma_long_val) or pd.isna(price):
-                continue
-
-            # Basic logic for phases
-            if (sma_short_val > sma_long_val) and (price > sma_short_val) and (price > sma_long_val):
-                classification_counts[date]["Bullish"] += 1
-            elif (sma_short_val > sma_long_val) and (price < sma_short_val):
-                if price < sma_long_val:
-                    classification_counts[date]["Distribution"] += 1
-                else:
-                    classification_counts[date]["Caution"] += 1
-            elif (sma_short_val < sma_long_val) and (price < sma_short_val) and (price < sma_long_val):
-                classification_counts[date]["Bearish"] += 1
-            elif (sma_short_val < sma_long_val) and (price > sma_short_val):
-                if price > sma_long_val:
-                    classification_counts[date]["Accumulation"] += 1
-                else:
-                    classification_counts[date]["Recuperation"] += 1
 
     # Convert tally counts to percentages
     total_tickers = len(data_dict)
@@ -122,6 +112,3 @@ def classify_phases(data_dict, ma_short=50, ma_long=200):
     df_phases.set_index("Date", inplace=True)
 
     return df_phases
-
-
-

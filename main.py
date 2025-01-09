@@ -1,5 +1,3 @@
-#main.py
-
 import os
 import sys
 import logging
@@ -208,6 +206,32 @@ def get_db_min_max_date():
     return min_date, max_date
 
 
+def get_last_business_day(ref_date):
+    """
+    Returns the last business day on or before ref_date.
+    """
+    while ref_date.weekday() >= 5:  # Sat=5, Sun=6
+        ref_date -= timedelta(days=1)
+    return ref_date
+
+
+def get_last_completed_trading_day():
+    """
+    Returns the last completed trading day (i.e., if today's market hasn't closed,
+    go to the previous day).
+    """
+    now = datetime.now()
+    while now.weekday() >= 5:  # If weekend
+        now -= timedelta(days=1)
+    # If the day hasn't closed yet (before 16:00 market close),
+    # move to the previous day
+    if now.hour < 16:
+        now -= timedelta(days=1)
+        while now.weekday() >= 5:
+            now -= timedelta(days=1)
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
 def fetch_and_write_all_tickers(tickers, start_date, end_date):
     """
     Checks the database for existing data and fetches missing data only if needed.
@@ -229,7 +253,7 @@ def fetch_and_write_all_tickers(tickers, start_date, end_date):
         cfg_end = get_last_business_day(cfg_end)
 
     # Quick check: If the DB already covers the entire range, skip fetching
-    if db_min and db_max:
+    if db_min and db_max and cfg_start and cfg_end:
         if pd.Timestamp(cfg_start) >= pd.Timestamp(db_min) and pd.Timestamp(cfg_end) <= pd.Timestamp(db_max):
             logging.info("Database covers the entire date range; skipping Yahoo Finance fetch.")
             data_dict = {}
@@ -276,14 +300,12 @@ def fetch_and_write_all_tickers(tickers, start_date, end_date):
                 existing_data = future.result()
                 for (mstart, mend) in needed_intervals:
                     if mstart <= mend:
-                        # --------------------------
-                        #  Use config.DATA_FETCH_INTERVAL
-                        # --------------------------
+                        # Use config.DATA_FETCH_INTERVAL
                         fetched_part = yf.download(
                             tck,
                             start=mstart,
                             end=mend + timedelta(days=1),
-                            interval=config.DATA_FETCH_INTERVAL,  # <--- IMPORTANT
+                            interval=config.DATA_FETCH_INTERVAL,
                             progress=False
                         )
                         if not fetched_part.empty:
@@ -317,6 +339,7 @@ def fetch_and_write_all_tickers(tickers, start_date, end_date):
 
     return data_dict, new_data_found
 
+
 def get_sp500_tickers():
     """
     Fetch the current S&P 500 constituents from Wikipedia, adjusting '.' to '-' for Yahoo format.
@@ -345,30 +368,6 @@ def get_sp500_tickers():
             ticker = ticker.replace(".", "-")  # Adjust for Yahoo format
             tickers.append(ticker)
     return tickers
-
-
-def get_last_business_day(ref_date):
-    """
-    Returns the last business day on or before ref_date.
-    """
-    while ref_date.weekday() >= 5:  # Sat=5, Sun=6
-        ref_date -= timedelta(days=1)
-    return ref_date
-
-
-def get_last_completed_trading_day():
-    """
-    Returns the last completed trading day (i.e., if today's market hasn't closed,
-    go to the previous day).
-    """
-    now = datetime.now()
-    while now.weekday() >= 5:  # If weekend
-        now -= timedelta(days=1)
-    if now.hour < 16:
-        now -= timedelta(days=1)
-        while now.weekday() >= 5:
-            now -= timedelta(days=1)
-    return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def merge_new_indicator_data(new_df: pd.DataFrame, indicator_name: str):
@@ -421,6 +420,9 @@ def merge_new_indicator_data(new_df: pd.DataFrame, indicator_name: str):
             conn.close()
 
 
+# ---------------------
+# MISSING-PLOT CHECKERS
+# ---------------------
 def check_and_save_missing_phase_plots(phases, df_phases):
     """
     If we are NOT making new plots (due to no new data),
@@ -428,7 +430,6 @@ def check_and_save_missing_phase_plots(phases, df_phases):
       - The config for that phase is True
       - The file does not already exist
     """
-    # If we want a single "all phases" plot and it doesn't exist
     if config.PLOT_PHASES.get("AllPhases", False):
         all_phases_file = os.path.join(config.RESULTS_DIR, "all_phases.png")
         if not os.path.exists(all_phases_file):
@@ -497,12 +498,14 @@ def check_and_save_missing_indicator_plots(indicator_name, df):
             plt.close()
 
 
+# ---------------------
+# PHASE PLOT FUNCTIONS
+# ---------------------
 def save_phase_plots(phases, df_phases):
     """
     Save plots for individual phases if config.PLOT_PHASES[phase] = True,
     and also an 'all phases' plot if config.PLOT_PHASES["AllPhases"] = True.
     """
-    # Debug: Ensure index matches monthly intervals
     logging.debug(f"Phase DataFrame index: {df_phases.index}")
 
     if config.PLOT_PHASES.get("AllPhases", False):
@@ -531,22 +534,20 @@ def save_phase_plots(phases, df_phases):
             plt.savefig(filename, dpi=100)
             plt.close()
 
+
 def save_plot(phase, df_phases_merged, filename):
     """
     Save a plot for a specific phase, overwriting the file each run.
     """
-    # Check if the phase exists in the DataFrame
     if phase not in df_phases_merged.columns:
         logging.warning(f"Phase '{phase}' not found in the DataFrame. Skipping plot.")
         return
 
-    # Drop any rows with NaN values for this phase
     phase_data = df_phases_merged[phase].dropna()
     if phase_data.empty:
         logging.warning(f"No data available for phase '{phase}'. Skipping plot.")
         return
 
-    # Create and save the plot
     plt.figure(figsize=(10, 6))
     plt.plot(phase_data.index, phase_data.values, label=phase)
     plt.title(f"{phase} Phase % Over Time")
@@ -558,6 +559,10 @@ def save_plot(phase, df_phases_merged, filename):
     plt.close()
     logging.info(f"Saved plot for phase: {phase} at {filename}")
 
+
+# -------------------------
+# INDICATOR PLOT FUNCTIONS
+# -------------------------
 def save_indicator_plots(indicator_name, df):
     """
     Normal function that always generates the plots (regardless of existing files).
@@ -591,6 +596,7 @@ def save_indicator_plots(indicator_name, df):
         plt.savefig(filename, dpi=100)
         plt.close()
 
+
 def main():
     """
     Main workflow:
@@ -619,20 +625,29 @@ def main():
         end_date=config.END_DATE
     )
 
-    # Phase classification
+    # Phase classification (daily-level)
     phases = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
-    df_phases = classify_phases(data_dict, ma_short=config.MA_SHORT, ma_long=config.MA_LONG)
+    df_phases_daily = classify_phases(data_dict, ma_short=config.MA_SHORT, ma_long=config.MA_LONG)
+
+    # NEW: Resample daily phases according to config.PHASE_PLOT_INTERVAL
+    # If you want the last value, use .last(); if you prefer mean across the period, use .mean()
+    df_phases_resampled = (
+        df_phases_daily
+        .resample(config.PHASE_PLOT_INTERVAL)
+        .mean()
+        # or .last() or .first(), depending on your preference
+    )
 
     # If NO new data => ONLY create missing plots if they do not exist
     if not new_data_found:
         logging.info("No new data was fetched. Creating missing plots (if any) then exiting.")
-        
-        # Check and create missing phase plots
+
+        # Check and create missing phase plots (use resampled for consistency)
         for phase in phases:
             plot_path = os.path.join(config.RESULTS_DIR, f"phase_{phase.lower()}.png")
             if not os.path.exists(plot_path) and config.PLOT_PHASES.get(phase, False):
                 logging.info(f"Creating missing plot for phase: {phase}")
-                save_plot(phase, df_phases, plot_path)
+                save_plot(phase, df_phases_resampled, plot_path)
 
         # Check and create missing indicator plots
         indicator_info = [
@@ -648,19 +663,28 @@ def main():
             (compute_trin, "trin"),
         ]
         for compute_func, indicator_name in indicator_info:
-            plot_dir = config.RESULTS_DIR
-            plot_path = os.path.join(plot_dir, f"{indicator_name}.png")
-            if not os.path.exists(plot_path) and config.PLOT_INDICATORS.get(indicator_name, False):
-                logging.info(f"Creating missing plot for indicator: {indicator_name}")
-                result_df = compute_func(data_dict)
-                save_indicator_plots(indicator_name, result_df)
+            # Get the daily indicator data
+            result_df_daily = compute_func(data_dict)
+            # Resample the indicator data
+            result_df_resampled = (
+                result_df_daily
+                .resample(config.INDICATOR_PLOT_INTERVAL)
+                .mean()
+            )
+            # If the user wants plots, but they're missing, create them
+            if config.PLOT_INDICATORS.get(indicator_name, False):
+                for col in result_df_resampled.columns:
+                    plot_file = os.path.join(config.RESULTS_DIR, f"{indicator_name}_{col}.png")
+                    if not os.path.exists(plot_file):
+                        logging.info(f"Creating missing plot for indicator: {indicator_name} - {col}")
+                        save_indicator_plots(indicator_name, result_df_resampled)
 
         logging.info("Missing plots created. Exiting.")
         return
 
-    # If we HAVE new data => do normal logic: update DB, produce all plots
-    merge_new_indicator_data(df_phases, "phase_classification")
-    save_phase_plots(phases, df_phases)
+    # If we HAVE new data => normal logic: update DB, produce all plots
+    merge_new_indicator_data(df_phases_daily, "phase_classification")
+    save_phase_plots(phases, df_phases_resampled)
 
     # Indicators
     indicator_tasks = [
@@ -679,9 +703,19 @@ def main():
     with ThreadPoolExecutor() as executor:
         futures = []
         for compute_func, indicator_name in indicator_tasks:
-            result_df = compute_func(data_dict)
-            futures.append(executor.submit(merge_new_indicator_data, result_df, indicator_name))
-            futures.append(executor.submit(save_indicator_plots, indicator_name, result_df))
+            # 1) Compute daily
+            result_df_daily = compute_func(data_dict)
+            # 2) Store raw daily data in DB
+            futures.append(executor.submit(merge_new_indicator_data, result_df_daily, indicator_name))
+            # 3) Resample for plotting
+            result_df_resampled = (
+                result_df_daily
+                .resample(config.INDICATOR_PLOT_INTERVAL)
+                .mean()
+            )
+            # 4) Save plots
+            futures.append(executor.submit(save_indicator_plots, indicator_name, result_df_resampled))
+
         # Ensure all tasks are completed before exiting
         for future in futures:
             future.result()

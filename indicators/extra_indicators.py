@@ -25,7 +25,14 @@ def compute_mcclellan(data_dict: Dict[str, pd.DataFrame], fast: int = 19, slow: 
         decliners = 0
         for ticker, df in data_dict.items():
             if date in df.index:
+                rows = df.loc[date]
+                if isinstance(rows, pd.DataFrame):
+                    rows = rows.iloc[0]
+
                 idx = df.index.get_loc(date)
+                if isinstance(idx, slice):  # Handle slice
+                    idx = idx.start
+
                 if idx > 0:
                     prev_close = df.iloc[idx - 1]["Close"]
                     curr_close = df.iloc[idx]["Close"]
@@ -35,6 +42,7 @@ def compute_mcclellan(data_dict: Dict[str, pd.DataFrame], fast: int = 19, slow: 
                         advancers += 1
                     elif curr_close < prev_close:
                         decliners += 1
+
         net = advancers - decliners
         adv_minus_decl.append([date, net])
 
@@ -88,7 +96,14 @@ def compute_index_of_fear_greed(
         new_lows = 0
         for ticker, df in data_dict.items():
             if date in df.index:
+                rows = df.loc[date]
+                if isinstance(rows, pd.DataFrame):
+                    rows = rows.iloc[0]
+
                 idx = df.index.get_loc(date)
+                if isinstance(idx, slice):  # Handle slice
+                    idx = idx.start
+
                 if idx > 0:
                     prev_close = df.iloc[idx - 1]["Close"]
                     curr_close = df.iloc[idx]["Close"]
@@ -98,6 +113,7 @@ def compute_index_of_fear_greed(
                         adv += 1
                     elif curr_close < prev_close:
                         dec += 1
+
                 # simplistic: check if today's close is the highest/lowest over last 20 days, for example
                 lookback = 20
                 lower_idx = max(0, idx - lookback + 1)

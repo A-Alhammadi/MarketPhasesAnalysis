@@ -13,13 +13,13 @@ DB_PASS = "mypassword"
 START_DATE = "2020-01-01"
 END_DATE = None
 # e.g., "1d", "1wk", "1mo"
-DATA_FETCH_INTERVAL = "1mo"
+DATA_FETCH_INTERVAL = "1wk"
 
 # ====================
 # MOVING AVERAGE
 # ====================
-MA_SHORT = 6
-MA_LONG = 12
+MA_SHORT = 8
+MA_LONG = 40
 
 # ====================
 # PLOT SETTINGS
@@ -35,7 +35,7 @@ PLOT_PHASES = {
 }
 
 PLOT_INDICATORS = {
-    "adv_decline": False,
+    "adv_decline": True,
     "adv_decline_volume": False,
     "new_high_low": False,
     "percent_above_ma": False,
@@ -48,3 +48,10 @@ PLOT_INDICATORS = {
 }
 
 RESULTS_DIR = "results"
+
+# ==========================================
+# NEW: Intervals for phase & indicator plots
+# ==========================================
+# Valid Pandas offset aliases include 'D', 'W', 'M', 'Q', 'Y', etc.
+PHASE_PLOT_INTERVAL = "W"       # e.g. monthly
+INDICATOR_PLOT_INTERVAL = "W"   # e.g. monthly
