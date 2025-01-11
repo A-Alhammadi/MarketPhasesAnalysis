@@ -523,24 +523,28 @@ def main():
                 ("trin", compute_trin),
             ]
             for indicator_name, compute_func in indicator_tasks:
-                result_df_daily = compute_func(
-                    data_dict.get("Close", pd.DataFrame()), 
-                    data_dict.get("Volume", pd.DataFrame()),
-                    data_dict.get("High", pd.DataFrame()),
-                    data_dict.get("Low", pd.DataFrame())
+                # IMPORTANT CHANGE: Use run_indicator(...) instead of compute_func(...) directly
+                result_df_daily = run_indicator(
+                    indicator_name=indicator_name,
+                    data_dict=data_dict,
+                    compute_func=lambda cdf, vdf, hdf, ldf: compute_func(cdf, vdf, hdf, ldf)
                 )
 
-                # Ensure the index is a DatetimeIndex before resampling
+                # Ensure the index is a proper DatetimeIndex before resampling
                 if result_df_daily.empty:
                     logging.warning(f"{indicator_name} returned an empty DataFrame, skipping.")
                     continue
 
                 result_df_daily.index = pd.to_datetime(result_df_daily.index, errors="coerce")
                 if not isinstance(result_df_daily.index, pd.DatetimeIndex):
-                    logging.warning(f"{indicator_name} index could not be converted to a DatetimeIndex, skipping.")
+                    logging.warning(
+                        f"{indicator_name} index could not be converted to a DatetimeIndex, skipping."
+                    )
                     continue
                 if result_df_daily.index.hasnans:
-                    logging.warning(f"{indicator_name} index has NaT (missing) values, skipping.")
+                    logging.warning(
+                        f"{indicator_name} index has NaT (missing) values, skipping."
+                    )
                     continue
 
                 result_df_resampled = result_df_daily.resample(config.INDICATOR_PLOT_INTERVAL).mean()
