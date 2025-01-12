@@ -55,7 +55,6 @@ from sqlalchemy import create_engine
 DATABASE_URL = f"postgresql://{config.DB_USER}:{config.DB_PASS}@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}"
 engine = create_engine(DATABASE_URL)
 
-
 ###############################################################################
 # DB Helpers & Table Creation
 ###############################################################################
@@ -221,9 +220,100 @@ def get_sp500_tickers() -> List[str]:
         logging.error(f"Error fetching S&P 500 tickers: {e}")
         return []
 
+def save_phases_breakdown(
+    df_phases_daily: pd.DataFrame,
+    df_phases_resampled: pd.DataFrame,
+    output_file=os.path.join(config.RESULTS_DIR, "phases_breakdown.txt")
+):
+    """
+    Save a detailed breakdown of phases to a text file.
+    Includes both daily and resampled data.
+    """
+    with open(output_file, "w") as f:
+        f.write("=== Phases Breakdown ===\n\n")
+
+        # Daily Phases Breakdown
+        f.write(">> Daily Phases Breakdown:\n")
+        if not df_phases_daily.empty:
+            latest_daily = df_phases_daily.iloc[-1]  # Get the most recent daily row
+            latest_date = df_phases_daily.index[-1].strftime("%Y-%m-%d")
+            f.write(f"Date: {latest_date}\n")
+            for phase, value in latest_daily.items():
+                f.write(f"{phase}: {value:.2f}%\n")
+        else:
+            f.write("No daily phase data available.\n")
+
+        f.write("\n")
+
+        # Resampled Phases Breakdown
+        f.write(">> Resampled Phases Breakdown:\n")
+        if not df_phases_resampled.empty:
+            for idx, row in df_phases_resampled.iterrows():
+                date_str = idx.strftime("%Y-%m-%d")
+                f.write(f"Date: {date_str}\n")
+                for phase, value in row.items():
+                    f.write(f"  {phase}: {value:.2f}%\n")
+                f.write("\n")
+        else:
+            f.write("No resampled phase data available.\n")
+
+    logging.info(f"Phases breakdown saved to {output_file}")
 
 ###############################################################################
-# MAIN ENTRY POINT
+# NEW: A helper to record the latest breadth & phases data + z-scores
+###############################################################################
+def save_latest_breadth_values(
+    df_phases_daily: pd.DataFrame,
+    all_indicators: Dict[str, pd.DataFrame],
+    output_file="breadth_values.txt"
+):
+    """
+    Writes the most recent phases breakdown and the most recent indicator
+    values (including z-score & percentile) to a text file.
+    """
+    # Open in write mode
+    with open(output_file, "w") as f:
+        f.write("=== Latest Phase Breakdown ===\n")
+        if not df_phases_daily.empty:
+            latest_phases = df_phases_daily.iloc[-1]  # last row
+            date_str = df_phases_daily.index[-1].strftime("%Y-%m-%d")
+            f.write(f"Date: {date_str}\n")
+            for phase_col in latest_phases.index:
+                f.write(f"{phase_col}: {latest_phases[phase_col]:.2f}%\n")
+        else:
+            f.write("No phase data available.\n")
+
+        # Now go through each indicator DF
+        for indicator_name, df_data in all_indicators.items():
+            if df_data.empty:
+                continue
+            f.write("\n")
+            f.write(f"=== Latest Values for {indicator_name} ===\n")
+            last_row = df_data.iloc[-1]  # last row
+            date_str = df_data.index[-1].strftime("%Y-%m-%d")
+            f.write(f"Date: {date_str}\n")
+
+            for col in df_data.columns:
+                col_series = df_data[col].dropna()
+                if col_series.empty:
+                    continue
+
+                latest_val = last_row[col]
+                col_mean = col_series.mean()
+                col_std = col_series.std()
+                if col_std != 0:
+                    z_score = (latest_val - col_mean) / col_std
+                else:
+                    z_score = 0.0
+
+                # percentile: fraction of points <= latest_val
+                percentile = (col_series <= latest_val).mean() * 100
+
+                f.write(f"{col} = {latest_val:.4f}, "
+                        f"Z-score = {z_score:.4f}, "
+                        f"Percentile = {percentile:.2f}%\n")
+
+
 ###############################################################################
 # ADDED FOR PROFILING
 profiler = cProfile.Profile()
@@ -232,11 +322,14 @@ profiler.enable()
 @atexit.register
 def stop_profiler():
     profiler.disable()
-    with open("profile_stats.txt", "w") as f:
+    profile_stats_path = os.path.join(config.RESULTS_DIR, "profile_stats.txt")
+    with open(profile_stats_path, "w") as f:
         stats = pstats.Stats(profiler, stream=f).sort_stats("cumulative")
         stats.print_stats()
 
-
+###############################################################################
+# MAIN ENTRY POINT
+###############################################################################
 @measure_time
 def main():
     """
@@ -247,11 +340,14 @@ def main():
       4) Classify phases and save them in DB (indicator_data).
       5) Compute indicators, save them in DB.
       6) Plot phases & indicators from whatever data is found.
+      7) Save the "latest" breadth indicator values & phases breakdown
+         (plus z-scores & percentiles) to a text file.
     """
 
     if not os.path.exists(config.RESULTS_DIR):
         os.makedirs(config.RESULTS_DIR)
 
+    # Existing log to logs.txt
     log_path = os.path.join(config.RESULTS_DIR, "logs.txt")
     logging.basicConfig(
         filename=log_path,
@@ -260,19 +356,37 @@ def main():
         format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
+    # -------------------------------------------------------------------------
+    # NEW: Additional logger for main events
+    # -------------------------------------------------------------------------
+    events_logger = logging.getLogger("events_logger")
+    events_logger.setLevel(logging.INFO)
+    events_log_path = os.path.join(config.RESULTS_DIR, "events_log.txt")
+    fh = logging.FileHandler(events_log_path, mode="a")  # save in results/
+    # save to separate txt
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    fh.setFormatter(formatter)
+    events_logger.addHandler(fh)
+    # We can now log high-level events via: events_logger.info(...)
+
+    events_logger.info("START of main program")
+
     with DBConnectionManager() as conn:
         if conn is None:
             logging.error("Could not establish a database connection. Exiting.")
+            events_logger.error("Could not establish DB connection. Exiting.")
             sys.exit(1)
 
         # Make sure the tables exist
         db_pool.monitor_pool()
         create_tables(conn)
+        events_logger.info("Tables ensured in DB")
 
         # You can change this to your own fixed list or logic
         tickers = get_sp500_tickers()
         if not tickers:
             logging.error("No tickers found. Exiting.")
+            events_logger.error("No tickers found. Exiting.")
             sys.exit(1)
 
         log_memory_usage("Before batch_fetch_from_db")
@@ -283,6 +397,7 @@ def main():
         if not data_dict:
             logging.warning("No data was found in the DB for these tickers.")
             logging.warning("Will not perform any classification or indicator plots.")
+            events_logger.warning("No data found for any tickers in DB.")
             sys.exit(0)
 
         # Classification into phases
@@ -296,6 +411,7 @@ def main():
 
         if df_phases_daily.empty:
             logging.warning("Phase classification returned empty. Skipping phase plots.")
+            events_logger.warning("No phases data - skipping plots.")
         else:
             # Save daily phase classification in DB
             write_indicator_data_to_db(df_phases_daily, "phase_classification", conn)
@@ -305,6 +421,8 @@ def main():
             df_phases_resampled = df_phases_daily.resample(config.PHASE_PLOT_INTERVAL).last()
 
             save_phase_plots(phases, df_phases_resampled)
+            save_phases_breakdown(df_phases_daily, df_phases_resampled)
+            events_logger.info("Phase plots saved")
 
         # Indicator computations
         indicator_tasks = [
@@ -320,7 +438,11 @@ def main():
             ("trin", compute_trin),
         ]
 
+        # Keep references to each indicator's output
+        computed_indicators = {}
+
         for indicator_name, compute_func in indicator_tasks:
+            events_logger.info(f"Starting computation for {indicator_name}")
             result_df_daily = run_indicator(
                 indicator_name=indicator_name,
                 data_dict=data_dict,
@@ -329,10 +451,12 @@ def main():
 
             if result_df_daily.empty:
                 logging.warning(f"{indicator_name} returned an empty DataFrame, skipping.")
+                events_logger.warning(f"{indicator_name} is empty, skipping.")
                 continue
 
             # Store indicator result in DB
             write_indicator_data_to_db(result_df_daily, indicator_name, conn)
+            events_logger.info(f"Inserted {indicator_name} results into DB")
 
             # Plot
             result_df_daily.index = pd.to_datetime(result_df_daily.index, errors="coerce")
@@ -349,9 +473,22 @@ def main():
 
             result_df_resampled = result_df_daily.resample(config.INDICATOR_PLOT_INTERVAL).mean()
             save_indicator_plots(indicator_name, result_df_resampled)
+            events_logger.info(f"Saved plots for {indicator_name}")
+
+            # Keep the daily (not resampled) DataFrame in memory for the "latest values" report
+            computed_indicators[indicator_name] = result_df_daily
+
+        # After everything, save the latest values + z-scores + percentiles
+        save_latest_breadth_values(
+             df_phases_daily, 
+            computed_indicators, 
+            output_file=os.path.join(config.RESULTS_DIR, "breadth_values.txt")
+        )
+
+        events_logger.info("Saved latest breadth & phase values to 'breadth_values.txt'")
 
         logging.info("All tasks completed successfully.")
-
+        events_logger.info("END of main program")
 
 if __name__ == "__main__":
     main()
