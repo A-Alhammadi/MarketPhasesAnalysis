@@ -9,6 +9,8 @@ from typing import Dict
 
 import config
 from perf_utils import measure_time, log_memory_usage
+from db_manager import db_pool
+import psycopg2.extras
 
 # We store rolling means in a simple FIFO cache
 _rolling_means_cache = {}
@@ -21,39 +23,23 @@ _rolling_cache_misses = 0
 
 
 def _evict_if_needed():
-    """Evict oldest items if we exceed MAX_ROLLING_MEANS_CACHE_SIZE."""
     while len(_rolling_means_cache) > config.MAX_ROLLING_MEANS_CACHE_SIZE:
         oldest_key = _rolling_means_order.pop(0)
         _rolling_means_cache.pop(oldest_key, None)
 
 
-def _get_rolling_means(
-    df: pd.DataFrame,
-    ma_short: int,
-    ma_long: int,
-    ticker: str
-) -> (pd.Series, pd.Series):
+def _get_rolling_means(df: pd.DataFrame, ma_short: int, ma_long: int, ticker: str):
     global _rolling_cache_hits, _rolling_cache_misses
-
     if df.empty:
         return pd.Series(dtype=np.float32), pd.Series(dtype=np.float32)
 
-    key = (
-        ticker,
-        df.index[0],
-        df.index[-1],
-        len(df),
-        ma_short,
-        ma_long,
-    )
-
+    key = (ticker, df.index[0], df.index[-1], len(df), ma_short, ma_long)
     with _cache_lock:
         if key in _rolling_means_cache:
             _rolling_cache_hits += 1
             sma_short_series, sma_long_series = _rolling_means_cache[key]
         else:
             _rolling_cache_misses += 1
-            # Compute rolling means (potentially expensive)
             sma_short_series = df["Close"].rolling(window=ma_short, min_periods=1).mean()
             sma_long_series = df["Close"].rolling(window=ma_long, min_periods=1).mean()
 
@@ -62,7 +48,6 @@ def _get_rolling_means(
             _evict_if_needed()
 
     return sma_short_series, sma_long_series
-
 
 def log_rolling_cache_stats():
     """Log stats about the rolling means cache usage."""
@@ -77,16 +62,23 @@ def classify_phases(
     data_dict: Dict[str, pd.DataFrame],
     ma_short: int = 50,
     ma_long: int = 200
-) -> pd.DataFrame:
+):
     """
     Classify each ticker's data into phases based on the position of Close
     relative to rolling averages (ma_short, ma_long).
-    Returns a DataFrame with Date index and columns for each phase's percentage.
+    
+    Returns:
+      (df_detail, df_phases_pct)
+      
+      - df_detail: a DataFrame with columns [Ticker, Close, SMA_50, SMA_200, Phase]
+        and Date index. One row per ticker-date.
+      
+      - df_phases_pct: a DataFrame with Date index and columns for each phase's
+        percentage (Bullish, Caution, etc.).
     """
     dfs_with_phases = []
     total_tickers = len(data_dict)
 
-    # Convert config dates to datetime once
     start_date = pd.to_datetime(config.START_DATE) if config.START_DATE else None
     end_date = pd.to_datetime(config.END_DATE) if config.END_DATE else None
 
@@ -96,41 +88,31 @@ def classify_phases(
                 logging.warning(f"Ticker {ticker} has empty data. Skipping.")
                 continue
 
-            # Filter by START_DATE and END_DATE
             if start_date:
                 df = df[df.index >= start_date]
             if end_date:
                 df = df[df.index <= end_date]
 
             if df.empty:
-                logging.warning(f"No data within the specified date range for ticker {ticker}. Skipping.")
+                logging.warning(f"No data within the specified date range for {ticker}. Skipping.")
                 continue
 
             df.sort_index(inplace=True)
-
             if "Close" not in df.columns:
-                logging.warning(f"Ticker {ticker} is missing 'Close' column. Skipping.")
+                logging.warning(f"Ticker {ticker} is missing 'Close'. Skipping.")
                 continue
 
-            # Drop any duplicate date indices
             df = df[~df.index.duplicated(keep="first")]
-
-            # Ensure float32 to save memory
             df["Close"] = df["Close"].astype(np.float32, errors="ignore")
 
-            # Retrieve or compute rolling means
             sma_short_series, sma_long_series = _get_rolling_means(df, ma_short, ma_long, ticker)
+            df["SMA_50"] = sma_short_series.astype(np.float32, errors="ignore")
+            df["SMA_200"] = sma_long_series.astype(np.float32, errors="ignore")
+            
+            df.dropna(subset=["Close", "SMA_50", "SMA_200"], inplace=True)
 
-            df[f"SMA_{ma_short}"] = sma_short_series.astype(np.float32, errors="ignore")
-            df[f"SMA_{ma_long}"] = sma_long_series.astype(np.float32, errors="ignore")
-
-            df.dropna(
-                subset=["Close", f"SMA_{ma_short}", f"SMA_{ma_long}"],
-                inplace=True
-            )
-
-            sma_short_vals = df[f"SMA_{ma_short}"]
-            sma_long_vals = df[f"SMA_{ma_long}"]
+            sma_short_vals = df["SMA_50"]
+            sma_long_vals = df["SMA_200"]
             price_vals = df["Close"]
 
             cond_bullish = (
@@ -181,12 +163,12 @@ def classify_phases(
                 "Accumulation",
             ]
 
-            # Fix: Ensure dtype compatibility with np.select
             df["Phase"] = np.select(conditions, choices, default="Unknown").astype(object)
             df["Ticker"] = ticker
 
+            # Keep the detail columns for later DB insertion
             dfs_with_phases.append(
-                df[["Ticker", "Close", f"SMA_{ma_short}", f"SMA_{ma_long}", "Phase"]]
+                df[["Ticker", "Close", "SMA_50", "SMA_200", "Phase"]]
             )
 
         except Exception as e:
@@ -195,31 +177,30 @@ def classify_phases(
 
     if not dfs_with_phases:
         logging.warning("No valid data found across all tickers.")
-        return pd.DataFrame(
-            columns=["Date", "Bullish", "Caution", "Distribution",
-                     "Bearish", "Recuperation", "Accumulation"]
+        empty_detail = pd.DataFrame(columns=["Ticker", "Close", "SMA_50", "SMA_200", "Phase"])
+        empty_detail.index.name = "Date"
+        empty_summary = pd.DataFrame(
+            columns=["Date", "Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
         ).set_index("Date")
+        return empty_detail, empty_summary
 
-    # Concatenate all tickers
     big_df = pd.concat(dfs_with_phases)
-
-    # Count how many tickers in each phase per date
+    
+    # Aggregated percentage of tickers in each phase per date
     phase_counts = big_df.groupby([big_df.index, "Phase"]).size().unstack(fill_value=0)
 
-    # Ensure all phase columns exist
     phase_columns = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
     for col in phase_columns:
         if col not in phase_counts.columns:
             phase_counts[col] = 0
 
-    # Convert counts to % of total tickers
+    # Convert counts to % of total
     phase_pct = phase_counts.div(total_tickers).mul(100)
     phase_pct = phase_pct[phase_columns]
     phase_pct.index.name = "Date"
 
-    # Ensure DatetimeIndex for compatibility with resampling
-    phase_pct.index = pd.to_datetime(phase_pct.index)
-
     gc.collect()
-    return phase_pct
+
+    # Return both the per-ticker detail and the aggregated summary
+    return big_df, phase_pct
 
