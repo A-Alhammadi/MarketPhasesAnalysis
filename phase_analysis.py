@@ -72,7 +72,6 @@ def log_rolling_cache_stats():
         f"Current size: {len(_rolling_means_cache)}"
     )
 
-
 @measure_time
 def classify_phases(
     data_dict: Dict[str, pd.DataFrame],
@@ -87,10 +86,24 @@ def classify_phases(
     dfs_with_phases = []
     total_tickers = len(data_dict)
 
+    # Convert config dates to datetime once
+    start_date = pd.to_datetime(config.START_DATE) if config.START_DATE else None
+    end_date = pd.to_datetime(config.END_DATE) if config.END_DATE else None
+
     for ticker, df in data_dict.items():
         try:
             if df.empty:
                 logging.warning(f"Ticker {ticker} has empty data. Skipping.")
+                continue
+
+            # Filter by START_DATE and END_DATE
+            if start_date:
+                df = df[df.index >= start_date]
+            if end_date:
+                df = df[df.index <= end_date]
+
+            if df.empty:
+                logging.warning(f"No data within the specified date range for ticker {ticker}. Skipping.")
                 continue
 
             df.sort_index(inplace=True)

@@ -1,5 +1,3 @@
-# db_manager.py
-
 import logging
 import psycopg2
 import psycopg2.extras
@@ -17,7 +15,7 @@ RETRY_DELAY = 5  # seconds
 class DatabasePool:
     _instance = None
     _pool = None
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(DatabasePool, cls).__new__(cls)
@@ -50,7 +48,7 @@ class DatabasePool:
     def get_connection(self):
         """Get a connection from the pool with retry logic and proper error handling."""
         conn = None
-        
+
         for attempt in range(RETRY_ATTEMPTS):
             try:
                 conn = self._pool.getconn()
@@ -90,8 +88,10 @@ class DatabasePool:
             self._pool.closeall()
             logging.info("All connections in the pool have been closed.")
 
+
 # Global pool instance
 db_pool = DatabasePool()
+
 
 # Backward-compatible context manager
 class DBConnectionManager:
@@ -119,6 +119,7 @@ class DBConnectionManager:
             )
             return False
 
+
 @contextmanager
 def get_db_connection():
     """
@@ -132,4 +133,4 @@ def get_db_connection():
             logging.error(f"Database operation failed: {e}")
             raise
         finally:
-            db_pool.monitor_pool()  # <--- ADDED FOR PERF (optional)
+            db_pool.monitor_pool()  # optional

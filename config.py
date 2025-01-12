@@ -18,9 +18,11 @@ MAXCONN = 20
 # ====================
 # DATA RETRIEVAL
 # ====================
-START_DATE = "2020-01-01"
+# In this version we do not fetch from Yahoo or elsewhere,
+# but you can still set these if you plan to filter DB data by date, etc.
+START_DATE = "2024-01-01"
 END_DATE = None
-DATA_FETCH_INTERVAL = "1d" # e.g., "1d", "1wk", "1mo"
+DATA_FETCH_INTERVAL = "1d"  # This is no longer used here, but kept for reference
 
 # ====================
 # MOVING AVERAGES
@@ -64,12 +66,12 @@ PHASE_PLOT_INTERVAL = "W"       # e.g. weekly
 INDICATOR_PLOT_INTERVAL = "W"   # e.g. weekly
 
 # ------------------
-# ADDED: Cache size & memory threshold
+# Cache size & memory threshold
 # ------------------
 MAX_ROLLING_MEANS_CACHE_SIZE = 2000
-MAX_MEMORY_PERCENT = 95  # e.g., if memory usage goes above 95%, trigger circuit breaker or skip
+MAX_MEMORY_PERCENT = 95  # e.g., if memory usage goes above 95%, consider skipping
 
 # ====================
 # THREAD POOL SETTINGS
 # ====================
-MAX_WORKERS = 10  # <--- Add a config param to adjust thread pool concurrency
+MAX_WORKERS = 10  # <--- Adjust thread pool concurrency
