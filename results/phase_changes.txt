@@ -1,6 +1,5 @@
-=== DETECTED CHANGES ===
+=== PHASE CHANGES ===
 
->> Phase Changes:
 [2025-01-10] AAPL changed phase from Bullish to Caution
 [2025-01-10] AIZ changed phase from Bullish to Caution
 [2025-01-10] AMAT changed phase from Bullish to Caution
@@ -55,62 +54,3 @@
 [2025-01-10] WFC changed phase from Bullish to Caution
 [2025-01-10] WM changed phase from Bullish to Caution
 [2025-01-10] XYL changed phase from Bullish to Caution
-
->> Price / SMA Crosses:
-[2025-01-10] AAPL price crossed BELOW 50-day SMA
-[2025-01-10] AIZ price crossed BELOW 50-day SMA
-[2025-01-10] AMAT price crossed BELOW 50-day SMA
-[2025-01-10] APTV price crossed BELOW 50-day SMA
-[2025-01-10] BMY price crossed BELOW 50-day SMA
-[2025-01-10] BMY price crossed BELOW 200-day SMA
-[2025-01-10] BSX price crossed BELOW 50-day SMA
-[2025-01-10] BSX price crossed BELOW 200-day SMA
-[2025-01-10] C price crossed ABOVE 200-day SMA
-[2025-01-10] CAG price crossed BELOW 200-day SMA
-[2025-01-10] CAH price crossed BELOW 200-day SMA
-[2025-01-10] CDNS price crossed BELOW 50-day SMA
-[2025-01-10] CSCO price crossed ABOVE 200-day SMA
-[2025-01-10] CZR price crossed BELOW 50-day SMA
-[2025-01-10] DOV price crossed ABOVE 50-day SMA
-[2025-01-10] DPZ price crossed ABOVE 50-day SMA
-[2025-01-10] EA price crossed BELOW 50-day SMA
-[2025-01-10] ENPH price crossed BELOW 200-day SMA
-[2025-01-10] EOG price crossed BELOW 200-day SMA
-[2025-01-10] EPAM price crossed BELOW 200-day SMA
-[2025-01-10] ETR price crossed BELOW 200-day SMA
-[2025-01-10] FDX price crossed BELOW 50-day SMA
-[2025-01-10] HCA price crossed BELOW 50-day SMA
-[2025-01-10] HPE price crossed BELOW 200-day SMA
-[2025-01-10] HSIC price crossed BELOW 50-day SMA
-[2025-01-10] HSY price crossed BELOW 200-day SMA
-[2025-01-10] IP price crossed BELOW 50-day SMA
-[2025-01-10] MDLZ price crossed BELOW 50-day SMA
-[2025-01-10] MNST price crossed BELOW 50-day SMA
-[2025-01-10] MPWR price crossed BELOW 50-day SMA
-[2025-01-10] MS price crossed BELOW 50-day SMA
-[2025-01-10] NDAQ price crossed BELOW 50-day SMA
-[2025-01-10] NKE price crossed BELOW 200-day SMA
-[2025-01-10] OKE price crossed BELOW 50-day SMA
-[2025-01-10] OMC price crossed BELOW 50-day SMA
-[2025-01-10] ON price crossed BELOW 50-day SMA
-[2025-01-10] ORLY price crossed BELOW 50-day SMA
-[2025-01-10] OXY price crossed BELOW 50-day SMA
-[2025-01-10] PFG price crossed BELOW 50-day SMA
-[2025-01-10] SCHW price crossed BELOW 200-day SMA
-[2025-01-10] TDY price crossed BELOW 50-day SMA
-[2025-01-10] TEL price crossed BELOW 50-day SMA
-[2025-01-10] TER price crossed BELOW 50-day SMA
-[2025-01-10] TFC price crossed BELOW 50-day SMA
-[2025-01-10] TFX price crossed BELOW 50-day SMA
-[2025-01-10] TJX price crossed ABOVE 50-day SMA
-[2025-01-10] TMO price crossed ABOVE 50-day SMA
-[2025-01-10] TSLA price crossed BELOW 50-day SMA
-[2025-01-10] TXN price crossed BELOW 200-day SMA
-[2025-01-10] TYL price crossed BELOW 50-day SMA
-[2025-01-10] WAT price crossed BELOW 50-day SMA
-[2025-01-10] WBA price crossed BELOW 50-day SMA
-[2025-01-10] WEC price crossed BELOW 50-day SMA
-[2025-01-10] WFC price crossed BELOW 50-day SMA
-[2025-01-10] WM price crossed BELOW 50-day SMA
-[2025-01-10] XYL price crossed BELOW 50-day SMA
-

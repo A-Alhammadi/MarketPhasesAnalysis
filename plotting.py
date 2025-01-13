@@ -25,6 +25,12 @@ def _get_interval_label(interval_str: str) -> str:
     else:
         return "period"  # Fallback for other intervals
 
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+import os
+import pandas as pd
+import config
+
 def save_phase_plots(phases, df_phases):
     """
     Generate and save plots for all phases in df_phases (resampled or daily).
@@ -41,6 +47,7 @@ def save_phase_plots(phases, df_phases):
     # Filter by date range
     if config.START_DATE:
         start_date = pd.to_datetime(config.START_DATE)
+        df_phases_full = df_phases.copy()  # Keep the full data for MA calculations
         df_phases = df_phases[df_phases.index >= start_date]
     if config.END_DATE:
         end_date = pd.to_datetime(config.END_DATE)
@@ -75,13 +82,19 @@ def save_phase_plots(phases, df_phases):
                 # skip this phase
                 continue
             first_non_zero_date = non_zero_indices[0]
+
+            # Include data before the first non-zero date for MA calculation
+            phase_series_full = df_phases_full[phase].dropna()
+            moving_avg = phase_series_full.rolling(window=10, min_periods=1).mean()
+
+            # Trim to start from the first non-zero date for plotting
             phase_series = phase_series.loc[first_non_zero_date:]
+            moving_avg = moving_avg.loc[first_non_zero_date:]
 
             # Plot a line only (no markers)
             plt.plot(phase_series.index, phase_series.values, label=phase)
 
-            # 10-(interval)-period moving average in red
-            moving_avg = phase_series.rolling(window=10).mean().dropna()
+            # Plot the moving average line
             plt.plot(
                 moving_avg.index,
                 moving_avg.values,
@@ -118,7 +131,14 @@ def save_phase_plots(phases, df_phases):
         if non_zero_indices.empty:
             continue
         first_non_zero_date = non_zero_indices[0]
+
+        # Include data before the first non-zero date for MA calculation
+        phase_series_full = df_phases_full[phase].dropna()
+        moving_avg = phase_series_full.rolling(window=10, min_periods=1).mean()
+
+        # Trim to start from the first non-zero date for plotting
         phase_series = phase_series.loc[first_non_zero_date:]
+        moving_avg = moving_avg.loc[first_non_zero_date:]
 
         if phase_series.empty:
             continue
@@ -128,7 +148,7 @@ def save_phase_plots(phases, df_phases):
         # Plot a line only (no markers)
         plt.plot(phase_series.index, phase_series.values, label=phase)
 
-        moving_avg = phase_series.rolling(window=10).mean().dropna()
+        # Plot the moving average line
         plt.plot(
             moving_avg.index,
             moving_avg.values,
@@ -152,7 +172,6 @@ def save_phase_plots(phases, df_phases):
     # 3) Correlation Heatmap
     # ----------------------------
     _save_phase_correlation_heatmap(df_phases)
-
 
 def _save_phase_correlation_heatmap(df_phases):
     """

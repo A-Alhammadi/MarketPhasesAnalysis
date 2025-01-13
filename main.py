@@ -149,18 +149,19 @@ def write_phase_details_to_db(df: pd.DataFrame, conn):
     conn.commit()
     cur.close()
 
-def detect_and_log_changes(conn, output_file="changes_detected.txt"):
+def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_sma_changes_file="price_sma_changes.txt"):
     """
     1) Detect any ticker that changes its phase (old -> new).
     2) Detect price crossing above/below SMA_50 or SMA_200.
     3) Detect golden/death crosses (SMA_50 crossing SMA_200).
     
-    Results are written to output_file.
+    Results are written to separate files:
+      - Phase changes: phase_changes_file
+      - Price/SMA changes: price_sma_changes_file
     """
     import pandas as pd
 
     # We only need the last 2 distinct dates from phase_details
-    # So let's do a subquery that picks the last 2 dates
     query = """
         SELECT ticker, data_date, close, sma_50, sma_200, phase
         FROM phase_details
@@ -176,8 +177,10 @@ def detect_and_log_changes(conn, output_file="changes_detected.txt"):
     df = pd.read_sql(query, conn)
     if df.empty:
         # No data at all? Then no changes can be detected
-        with open(output_file, "w") as f:
-            f.write("No data found in phase_details, no changes detected.\n")
+        with open(phase_changes_file, "w") as f:
+            f.write("No data found in phase_details, no phase changes detected.\n")
+        with open(price_sma_changes_file, "w") as f:
+            f.write("No data found in phase_details, no price/SMA changes detected.\n")
         return
 
     df.sort_values(["ticker", "data_date"], inplace=True)
@@ -208,74 +211,58 @@ def detect_and_log_changes(conn, output_file="changes_detected.txt"):
         sma200_now = row["sma_200"]
         sma200_prev = row["prev_sma_200"]
 
-        # Price crossing 50-day
         if pd.notna(c_now) and pd.notna(c_prev) and pd.notna(sma50_now) and pd.notna(sma50_prev):
             # Cross above 50
-            was_below_50 = (c_prev < sma50_prev)
-            now_above_50 = (c_now > sma50_now)
-            if was_below_50 and now_above_50:
+            if (c_prev < sma50_prev) and (c_now > sma50_now):
                 price_sma_crosses.append(f"[{date_}] {ticker} price crossed ABOVE 50-day SMA")
 
             # Cross below 50
-            was_above_50 = (c_prev > sma50_prev)
-            now_below_50 = (c_now < sma50_now)
-            if was_above_50 and now_below_50:
+            if (c_prev > sma50_prev) and (c_now < sma50_now):
                 price_sma_crosses.append(f"[{date_}] {ticker} price crossed BELOW 50-day SMA")
 
-        # Price crossing 200-day
         if pd.notna(c_now) and pd.notna(c_prev) and pd.notna(sma200_now) and pd.notna(sma200_prev):
             # Cross above 200
-            was_below_200 = (c_prev < sma200_prev)
-            now_above_200 = (c_now > sma200_now)
-            if was_below_200 and now_above_200:
+            if (c_prev < sma200_prev) and (c_now > sma200_now):
                 price_sma_crosses.append(f"[{date_}] {ticker} price crossed ABOVE 200-day SMA")
 
             # Cross below 200
-            was_above_200 = (c_prev > sma200_prev)
-            now_below_200 = (c_now < sma200_now)
-            if was_above_200 and now_below_200:
+            if (c_prev > sma200_prev) and (c_now < sma200_now):
                 price_sma_crosses.append(f"[{date_}] {ticker} price crossed BELOW 200-day SMA")
 
         # 3) Golden / Death Cross
         if pd.notna(sma50_now) and pd.notna(sma50_prev) and pd.notna(sma200_now) and pd.notna(sma200_prev):
-            # Golden cross: 50d crossing above 200d
-            was_below = (sma50_prev < sma200_prev)
-            now_above = (sma50_now > sma200_now)
-            if was_below and now_above:
-                golden_death_crosses.append(f"[{date_}] {ticker} GOLDEN CROSS (50d above 200d)")
+            # Golden cross: 50-day SMA crossing above 200-day SMA
+            if (sma50_prev < sma200_prev) and (sma50_now > sma200_now):
+                golden_death_crosses.append(f"[{date_}] {ticker} GOLDEN CROSS (50-day SMA above 200-day SMA)")
 
-            # Death cross: 50d crossing below 200d
-            was_above = (sma50_prev > sma200_prev)
-            now_below = (sma50_now < sma200_now)
-            if was_above and now_below:
-                golden_death_crosses.append(f"[{date_}] {ticker} DEATH CROSS (50d below 200d)")
+            # Death cross: 50-day SMA crossing below 200-day SMA
+            if (sma50_prev > sma200_prev) and (sma50_now < sma200_now):
+                golden_death_crosses.append(f"[{date_}] {ticker} DEATH CROSS (50-day SMA below 200-day SMA)")
 
-    # Write to file
-    any_changes = (phase_changes or price_sma_crosses or golden_death_crosses)
-
-    with open(output_file, "w") as f:
-        if not any_changes:
-            f.write("No changes detected.\n")
-            return
-
-        f.write("=== DETECTED CHANGES ===\n\n")
+    # Write phase changes to a separate file
+    with open(phase_changes_file, "w") as f:
         if phase_changes:
-            f.write(">> Phase Changes:\n")
+            f.write("=== PHASE CHANGES ===\n\n")
             for line in phase_changes:
                 f.write(line + "\n")
-            f.write("\n")
+        else:
+            f.write("No phase changes detected.\n")
 
-        if price_sma_crosses:
-            f.write(">> Price / SMA Crosses:\n")
-            for line in price_sma_crosses:
-                f.write(line + "\n")
-            f.write("\n")
-
-        if golden_death_crosses:
-            f.write(">> Golden / Death Crosses:\n")
-            for line in golden_death_crosses:
-                f.write(line + "\n")
-            f.write("\n")
+    # Write price/SMA changes and golden/death crosses to another file
+    with open(price_sma_changes_file, "w") as f:
+        if price_sma_crosses or golden_death_crosses:
+            f.write("=== PRICE/SMA CHANGES ===\n\n")
+            if price_sma_crosses:
+                f.write(">> Price / SMA Crosses:\n")
+                for line in price_sma_crosses:
+                    f.write(line + "\n")
+                f.write("\n")
+            if golden_death_crosses:
+                f.write(">> Golden / Death Crosses:\n")
+                for line in golden_death_crosses:
+                    f.write(line + "\n")
+        else:
+            f.write("No price/SMA changes detected.\n")
 
 
 def write_indicator_data_to_db(new_df: pd.DataFrame, indicator_name: str, conn):
@@ -334,14 +321,20 @@ def read_ticker_data_from_db(ticker: str, conn) -> pd.DataFrame:
 
 def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
     """
-    Fetch data for the given tickers from the database and filter by date range.
+    Fetch data for the given tickers from the database, starting from an extended earliest date
+    to allow for proper moving average calculations. Trims data for plotting based on START_DATE.
     """
     data_dict = {}
     batch_size = 50
     max_workers = min(config.MAX_WORKERS, len(tickers)) if tickers else 1
 
+    # Calculate earliest date based on the longest moving average window (e.g., 200 days)
+    lookback_days = max(config.MA_SHORT, config.MA_LONG)
+    start_date = pd.to_datetime(config.START_DATE)
+    earliest_date = start_date - timedelta(days=lookback_days)
+
     for i in range(0, len(tickers), batch_size):
-        batch = tickers[i: i + batch_size]
+        batch = tickers[i : i + batch_size]
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_ticker = {
                 executor.submit(read_ticker_data_from_db, ticker, conn): ticker
@@ -352,10 +345,9 @@ def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
                 try:
                     df = future.result()
                     if not df.empty:
-                        # Apply date filtering here
-                        if config.START_DATE:
-                            start_date = pd.to_datetime(config.START_DATE)
-                            df = df[df.index >= start_date]
+                        # Fetch data starting from the earliest date
+                        df = df[df.index >= earliest_date]
+                        # Trim data for plotting (optional: after classification)
                         if config.END_DATE:
                             end_date = pd.to_datetime(config.END_DATE)
                             df = df[df.index <= end_date]
@@ -363,13 +355,12 @@ def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
                         if not df.empty:
                             data_dict[ticker] = df
                         else:
-                            logging.info(f"No data within the specified date range for {ticker}.")
+                            logging.info(f"No data within the date range for {ticker}.")
                     else:
-                        logging.info(f"DB has no data for {ticker}. Skipping.")
+                        logging.info(f"No data found in DB for {ticker}.")
                 except Exception as e:
                     logging.error(f"Error loading data for {ticker}: {e}")
     return data_dict
-
 
 def get_sp500_tickers() -> List[str]:
     """
@@ -571,6 +562,7 @@ def main():
 
         log_memory_usage("Before batch_fetch_from_db")
         data_dict = batch_fetch_from_db(tickers, conn)
+        df_phases_detail = classify_phases(data_dict, ma_short=config.MA_SHORT, ma_long=config.MA_LONG)
         db_pool.monitor_pool()
         log_memory_usage("After batch_fetch_from_db")
 
@@ -668,8 +660,10 @@ def main():
         # 8. Detect and log changes (NEW)
         detect_and_log_changes(
             conn,
-            output_file=os.path.join(config.RESULTS_DIR, "changes_detected.txt")
+            phase_changes_file=os.path.join(config.RESULTS_DIR, "phase_changes.txt"),
+            price_sma_changes_file=os.path.join(config.RESULTS_DIR, "price_sma_changes.txt")
         )
+
         events_logger.info("Logged phase/indicator changes to 'changes_detected.txt'")
 
         logging.info("All tasks completed successfully.")
