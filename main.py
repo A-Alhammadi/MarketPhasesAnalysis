@@ -59,9 +59,12 @@ engine = create_engine(DATABASE_URL)
 # DB Helpers & Table Creation
 ###############################################################################
 def create_tables(conn):
-    """Create the price_data, indicator_data, and new phase_details tables if they do not exist."""
+    """Create the price_data, indicator_data, new phase_details tables, 
+       plus new tables for volume MAs and price/volume MA deviations.
+    """
     cur = conn.cursor()
     
+    # 1) Existing tables...
     create_price_table = """
     CREATE TABLE IF NOT EXISTS price_data (
         ticker VARCHAR(20),
@@ -92,7 +95,6 @@ def create_tables(conn):
     cur.execute(create_indicator_table)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_indicator_data_date ON indicator_data (data_date);")
 
-    # NEW: phase_details table
     create_phase_details = """
     CREATE TABLE IF NOT EXISTS phase_details (
         ticker VARCHAR(20),
@@ -107,8 +109,45 @@ def create_tables(conn):
     cur.execute(create_phase_details)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_phase_details_date ON phase_details (data_date);")
 
+    # 2) NEW: volume_ma_data table
+    create_volume_ma_data = """
+    CREATE TABLE IF NOT EXISTS volume_ma_data (
+        ticker VARCHAR(20),
+        trade_date DATE,
+        vol_ma_10 NUMERIC,
+        vol_ma_20 NUMERIC,
+        PRIMARY KEY(ticker, trade_date)
+    );
+    """
+    cur.execute(create_volume_ma_data)
+
+    # 3) NEW: price_ma_deviation table
+    create_price_ma_deviation = """
+    CREATE TABLE IF NOT EXISTS price_ma_deviation (
+        ticker VARCHAR(20),
+        data_date DATE,
+        dev_50 NUMERIC,   -- % from 50-day
+        dev_200 NUMERIC,  -- % from 200-day
+        PRIMARY KEY(ticker, data_date)
+    );
+    """
+    cur.execute(create_price_ma_deviation)
+
+    # 4) NEW: volume_ma_deviation table
+    create_volume_ma_deviation = """
+    CREATE TABLE IF NOT EXISTS volume_ma_deviation (
+        ticker VARCHAR(20),
+        data_date DATE,
+        dev_20 NUMERIC,  -- % from 20-day volume
+        dev_63 NUMERIC,  -- % from 63-day volume
+        PRIMARY KEY(ticker, data_date)
+    );
+    """
+    cur.execute(create_volume_ma_deviation)
+
     conn.commit()
     cur.close()
+
 
 def write_phase_details_to_db(df: pd.DataFrame, conn):
     """
@@ -144,10 +183,10 @@ def write_phase_details_to_db(df: pd.DataFrame, conn):
             sma_200 = EXCLUDED.sma_200,
             phase = EXCLUDED.phase
     """
-    import psycopg2.extras
     psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
     conn.commit()
     cur.close()
+
 
 def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_sma_changes_file="price_sma_changes.txt"):
     """
@@ -155,9 +194,7 @@ def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_s
     2) Detect price crossing above/below SMA_50 or SMA_200.
     3) Detect golden/death crosses (SMA_50 crossing SMA_200).
     
-    Results are written to separate files:
-      - Phase changes: phase_changes_file
-      - Price/SMA changes: price_sma_changes_file
+    Results are written to separate files.
     """
     import pandas as pd
 
@@ -276,9 +313,17 @@ def write_indicator_data_to_db(new_df: pd.DataFrame, indicator_name: str, conn):
         dt_ = dt_.date()
         values = row.values.tolist()
         # Up to 5 columns' worth of data stored as value1..value5
-        values += [None] * (5 - len(values))  # pad if fewer than 5
-        values = values[:5]  # trim if more than 5
-        records.append((indicator_name, dt_, *values))
+        # Convert everything to float or None if needed
+        float_values = []
+        for val in values:
+            if pd.isna(val):
+                float_values.append(None)
+            else:
+                float_values.append(float(val))
+        # Pad or trim to exactly 5
+        float_values += [None] * (5 - len(float_values))
+        float_values = float_values[:5]
+        records.append((indicator_name, dt_, *float_values))
 
     insert_query = """
         INSERT INTO indicator_data
@@ -321,14 +366,13 @@ def read_ticker_data_from_db(ticker: str, conn) -> pd.DataFrame:
 
 def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
     """
-    Fetch data for the given tickers from the database, starting from an extended earliest date
-    to allow for proper moving average calculations. Trims data for plotting based on START_DATE.
+    Fetch data for the given tickers, starting from an extended earliest date
+    to allow for proper MA calculations. Trims based on START_DATE.
     """
     data_dict = {}
     batch_size = 50
     max_workers = min(config.MAX_WORKERS, len(tickers)) if tickers else 1
 
-    # Calculate earliest date based on the longest moving average window (e.g., 200 days)
     lookback_days = max(config.MA_SHORT, config.MA_LONG)
     start_date = pd.to_datetime(config.START_DATE)
     earliest_date = start_date - timedelta(days=lookback_days)
@@ -345,9 +389,7 @@ def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
                 try:
                     df = future.result()
                     if not df.empty:
-                        # Fetch data starting from the earliest date
                         df = df[df.index >= earliest_date]
-                        # Trim data for plotting (optional: after classification)
                         if config.END_DATE:
                             end_date = pd.to_datetime(config.END_DATE)
                             df = df[df.index <= end_date]
@@ -355,12 +397,217 @@ def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
                         if not df.empty:
                             data_dict[ticker] = df
                         else:
-                            logging.info(f"No data within the date range for {ticker}.")
+                            logging.info(f"No data within range for {ticker}.")
                     else:
                         logging.info(f"No data found in DB for {ticker}.")
                 except Exception as e:
                     logging.error(f"Error loading data for {ticker}: {e}")
     return data_dict
+
+
+def compute_and_store_volume_mas(data_dict: Dict[str, pd.DataFrame], conn):
+    """
+    For each ticker, compute the 10-day and 20-day volume MAs, store in volume_ma_data table.
+    Fix: Convert any np.float to plain float.
+    """
+    if not data_dict:
+        return
+    
+    cur = conn.cursor()
+    records = []
+    for ticker, df in data_dict.items():
+        if df.empty or "Volume" not in df.columns:
+            continue
+        
+        df.sort_index(inplace=True)
+        df["Volume"] = df["Volume"].astype(float)
+
+        df["vol_ma_10"] = df["Volume"].rolling(window=10, min_periods=1).mean()
+        df["vol_ma_20"] = df["Volume"].rolling(window=20, min_periods=1).mean()
+
+        for dt_, row in df.iterrows():
+            trade_date = dt_.date()
+            vol_ma10 = row["vol_ma_10"]
+            vol_ma20 = row["vol_ma_20"]
+
+            # Convert to Python float or None
+            vol_ma10 = float(vol_ma10) if pd.notna(vol_ma10) else None
+            vol_ma20 = float(vol_ma20) if pd.notna(vol_ma20) else None
+
+            records.append((ticker, trade_date, vol_ma10, vol_ma20))
+
+    insert_query = """
+        INSERT INTO volume_ma_data
+          (ticker, trade_date, vol_ma_10, vol_ma_20)
+        VALUES %s
+        ON CONFLICT (ticker, trade_date) DO UPDATE
+          SET vol_ma_10 = EXCLUDED.vol_ma_10,
+              vol_ma_20 = EXCLUDED.vol_ma_20
+    """
+    psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
+    conn.commit()
+    cur.close()
+
+
+def compute_and_store_price_ma_deviation(data_dict: Dict[str, pd.DataFrame], conn):
+    """
+    Calculate how far Close is in % from its 50-day & 200-day MAs, store in price_ma_deviation.
+    """
+    if not data_dict:
+        return
+    
+    cur = conn.cursor()
+    records = []
+    for ticker, df in data_dict.items():
+        if df.empty or "Close" not in df.columns:
+            continue
+        
+        df.sort_index(inplace=True)
+        df["Close"] = df["Close"].astype(float)
+
+        df["ma_50"] = df["Close"].rolling(window=50, min_periods=1).mean()
+        df["ma_200"] = df["Close"].rolling(window=200, min_periods=1).mean()
+
+        df["dev_50"] = ((df["Close"] - df["ma_50"]) / df["ma_50"]) * 100
+        df["dev_200"] = ((df["Close"] - df["ma_200"]) / df["ma_200"]) * 100
+
+        for dt_, row in df.iterrows():
+            data_date = dt_.date()
+            dev50 = row["dev_50"]
+            dev200 = row["dev_200"]
+
+            # Convert to float or None
+            dev50 = float(dev50) if pd.notna(dev50) else None
+            dev200 = float(dev200) if pd.notna(dev200) else None
+
+            # Skip earliest NaNs if desired
+            if dev50 is None or dev200 is None:
+                continue
+
+            records.append((ticker, data_date, dev50, dev200))
+
+    insert_query = """
+        INSERT INTO price_ma_deviation
+          (ticker, data_date, dev_50, dev_200)
+        VALUES %s
+        ON CONFLICT (ticker, data_date) DO UPDATE
+          SET dev_50 = EXCLUDED.dev_50,
+              dev_200 = EXCLUDED.dev_200
+    """
+    psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
+    conn.commit()
+    cur.close()
+
+
+def compute_and_store_volume_ma_deviation(data_dict: Dict[str, pd.DataFrame], conn):
+    """
+    Calculate how far Volume is from its 20-day & 63-day MAs, store in volume_ma_deviation.
+    """
+    if not data_dict:
+        return
+
+    cur = conn.cursor()
+    records = []
+
+    for ticker, df in data_dict.items():
+        if df.empty or "Volume" not in df.columns:
+            continue
+        
+        df.sort_index(inplace=True)
+        df["Volume"] = df["Volume"].astype(float)
+
+        df["vol_ma_20"] = df["Volume"].rolling(window=20, min_periods=1).mean()
+        df["vol_ma_63"] = df["Volume"].rolling(window=63, min_periods=1).mean()
+
+        df["dev_20"] = ((df["Volume"] - df["vol_ma_20"]) / df["vol_ma_20"]) * 100
+        df["dev_63"] = ((df["Volume"] - df["vol_ma_63"]) / df["vol_ma_63"]) * 100
+
+        for dt_, row in df.iterrows():
+            data_date = dt_.date()
+            d20 = row["dev_20"]
+            d63 = row["dev_63"]
+
+            # Convert to float or None
+            d20 = float(d20) if pd.notna(d20) else None
+            d63 = float(d63) if pd.notna(d63) else None
+
+            if d20 is None or d63 is None:
+                continue
+            records.append((ticker, data_date, d20, d63))
+
+    insert_query = """
+        INSERT INTO volume_ma_deviation
+          (ticker, data_date, dev_20, dev_63)
+        VALUES %s
+        ON CONFLICT (ticker, data_date) DO UPDATE
+          SET dev_20 = EXCLUDED.dev_20,
+              dev_63 = EXCLUDED.dev_63
+    """
+    psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
+    conn.commit()
+    cur.close()
+
+
+def export_extreme_volumes(conn, z_threshold=2.0):
+    """
+    Exports stocks with extreme volume deviations based on z-scores.
+    """
+    cur = conn.cursor()
+
+    # 1) Find the last date in volume_ma_deviation
+    cur.execute("SELECT MAX(data_date) FROM volume_ma_deviation;")
+    row = cur.fetchone()
+    if not row or not row[0]:
+        logging.warning("No data in volume_ma_deviation table.")
+        cur.close()
+        return
+    last_date = row[0]  # date object
+
+    # 2) Query the data for that date
+    query = """
+        SELECT ticker, dev_20, dev_63
+        FROM volume_ma_deviation
+        WHERE data_date = %s
+    """
+    cur.execute(query, (last_date,))
+    rows = cur.fetchall()
+    cur.close()
+
+    if not rows:
+        logging.info(f"No volume deviation data on {last_date}.")
+        return
+
+    # 3) Create a DataFrame
+    import pandas as pd
+    df = pd.DataFrame(rows, columns=["Ticker", "Dev_20", "Dev_63"])
+
+    # Convert Decimal to float
+    df["Dev_20"] = df["Dev_20"].astype(float)
+    df["Dev_63"] = df["Dev_63"].astype(float)
+
+    # Compute z-scores
+    df["Dev_20_Z"] = (df["Dev_20"] - df["Dev_20"].mean()) / df["Dev_20"].std()
+    df["Dev_63_Z"] = (df["Dev_63"] - df["Dev_63"].mean()) / df["Dev_63"].std()
+
+    # Filter stocks based on z_threshold
+    extremes = df[
+        (df["Dev_20_Z"].abs() >= z_threshold) | (df["Dev_63_Z"].abs() >= z_threshold)
+    ]
+
+    # 4) Write results to a file
+    if not extremes.empty:
+        file_name = os.path.join(config.RESULTS_DIR, f"extreme_volume_stocks_{last_date}.txt")
+        with open(file_name, "w") as f:
+            f.write(f"Extreme Volume Stocks for {last_date} (Z-Threshold: {z_threshold}):\n\n")
+            for _, row in extremes.iterrows():
+                f.write(
+                    f"{row['Ticker']}: Dev_20_Z = {row['Dev_20_Z']:.2f}, "
+                    f"Dev_63_Z = {row['Dev_63_Z']:.2f}\n"
+                )
+        logging.info(f"Extreme volume file created: {file_name}")
+    else:
+        logging.info(f"No stocks exceeded z-threshold {z_threshold} on {last_date}.")
+
 
 def get_sp500_tickers() -> List[str]:
     """
@@ -386,13 +633,13 @@ def get_sp500_tickers() -> List[str]:
             cols = row.find_all("td")
             if cols:
                 ticker = cols[0].text.strip()
-                # Some S&P500 tickers have periods - we often replace them with dash
                 ticker = ticker.replace(".", "-")
                 tickers.append(ticker)
         return tickers
     except Exception as e:
         logging.error(f"Error fetching S&P 500 tickers: {e}")
         return []
+
 
 def save_phases_breakdown(
     df_phases_daily: pd.DataFrame,
@@ -409,7 +656,7 @@ def save_phases_breakdown(
         # Daily Phases Breakdown
         f.write(">> Daily Phases Breakdown:\n")
         if not df_phases_daily.empty:
-            latest_daily = df_phases_daily.iloc[-1]  # Get the most recent daily row
+            latest_daily = df_phases_daily.iloc[-1]
             latest_date = df_phases_daily.index[-1].strftime("%Y-%m-%d")
             f.write(f"Date: {latest_date}\n")
             for phase, value in latest_daily.items():
@@ -433,8 +680,9 @@ def save_phases_breakdown(
 
     logging.info(f"Phases breakdown saved to {output_file}")
 
+
 ###############################################################################
-# NEW: A helper to record the latest breadth & phases data + z-scores
+# A helper to record the latest breadth & phases data + z-scores
 ###############################################################################
 def save_latest_breadth_values(
     df_phases_daily: pd.DataFrame,
@@ -445,11 +693,10 @@ def save_latest_breadth_values(
     Writes the most recent phases breakdown and the most recent indicator
     values (including z-score & percentile) to a text file.
     """
-    # Open in write mode
     with open(output_file, "w") as f:
         f.write("=== Latest Phase Breakdown ===\n")
         if not df_phases_daily.empty:
-            latest_phases = df_phases_daily.iloc[-1]  # last row
+            latest_phases = df_phases_daily.iloc[-1]
             date_str = df_phases_daily.index[-1].strftime("%Y-%m-%d")
             f.write(f"Date: {date_str}\n")
             for phase_col in latest_phases.index:
@@ -457,13 +704,12 @@ def save_latest_breadth_values(
         else:
             f.write("No phase data available.\n")
 
-        # Now go through each indicator DF
         for indicator_name, df_data in all_indicators.items():
             if df_data.empty:
                 continue
             f.write("\n")
             f.write(f"=== Latest Values for {indicator_name} ===\n")
-            last_row = df_data.iloc[-1]  # last row
+            last_row = df_data.iloc[-1]
             date_str = df_data.index[-1].strftime("%Y-%m-%d")
             f.write(f"Date: {date_str}\n")
 
@@ -480,7 +726,6 @@ def save_latest_breadth_values(
                 else:
                     z_score = 0.0
 
-                # percentile: fraction of points <= latest_val
                 percentile = (col_series <= latest_val).mean() * 100
 
                 f.write(f"{col} = {latest_val:.4f}, "
@@ -490,6 +735,7 @@ def save_latest_breadth_values(
 
 ###############################################################################
 # ADDED FOR PROFILING
+###############################################################################
 profiler = cProfile.Profile()
 profiler.enable()
 
@@ -501,6 +747,7 @@ def stop_profiler():
         stats = pstats.Stats(profiler, stream=f).sort_stats("cumulative")
         stats.print_stats()
 
+
 ###############################################################################
 # MAIN ENTRY POINT
 ###############################################################################
@@ -511,12 +758,14 @@ def main():
       1) Create tables if not found.
       2) Get a list of tickers (e.g. from S&P500).
       3) Fetch all existing data from DB for those tickers.
-      4) Classify phases and save them in DB (indicator_data and phase_details).
-      5) Compute indicators, save them in DB.
-      6) Plot phases & indicators from whatever data is found.
-      7) Detect and log phase changes, price crossings, and golden/death crosses.
-      8) Save the "latest" breadth indicator values & phases breakdown
-         (plus z-scores & percentiles) to a text file.
+      4) Compute & store volume MAs (10, 20) => volume_ma_data
+      5) Compute & store price % dev (50/200) => price_ma_deviation
+      6) Compute & store volume % dev (20/63) => volume_ma_deviation
+      7) Classify phases & store in DB => also do plots
+      8) Compute other indicators & store => also do plots
+      9) Export "extreme volume" file
+      10) Save "latest breadth" text
+      11) Detect/log changes (phase, SMA crosses)
     """
 
     if not os.path.exists(config.RESULTS_DIR):
@@ -548,12 +797,10 @@ def main():
             events_logger.error("Could not establish DB connection. Exiting.")
             sys.exit(1)
 
-        # Ensure tables exist
         db_pool.monitor_pool()
         create_tables(conn)
         events_logger.info("Tables ensured in DB")
 
-        # Get list of tickers (modify `get_sp500_tickers` as needed for your tickers)
         tickers = get_sp500_tickers()
         if not tickers:
             logging.error("No tickers found. Exiting.")
@@ -562,16 +809,24 @@ def main():
 
         log_memory_usage("Before batch_fetch_from_db")
         data_dict = batch_fetch_from_db(tickers, conn)
-        df_phases_detail = classify_phases(data_dict, ma_short=config.MA_SHORT, ma_long=config.MA_LONG)
         db_pool.monitor_pool()
         log_memory_usage("After batch_fetch_from_db")
 
         if not data_dict:
-            logging.warning("No data was found in the DB for these tickers.")
-            events_logger.warning("No data found for any tickers in DB.")
+            logging.warning("No data found in DB for these tickers.")
+            events_logger.warning("No data found. Exiting.")
             sys.exit(0)
 
-        # 1. Classification into phases (returns detail + summary DataFrames)
+        # 4) Volume MAs (10, 20)
+        compute_and_store_volume_mas(data_dict, conn)
+
+        # 5) Price dev (50, 200)
+        compute_and_store_price_ma_deviation(data_dict, conn)
+
+        # 6) Volume dev (20, 63)
+        compute_and_store_volume_ma_deviation(data_dict, conn)
+
+        # 7) Phases classification
         phases = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
         df_phases_detail, df_phases_daily = classify_phases(
             data_dict,
@@ -581,25 +836,20 @@ def main():
         log_rolling_cache_stats()
 
         if df_phases_daily.empty:
-            logging.warning("Phase classification returned empty. Skipping phase plots.")
-            events_logger.warning("No phases data - skipping plots.")
+            logging.warning("Phase classification is empty. Skipping phase plots.")
+            events_logger.warning("No phases data - skipping.")
         else:
-            # 2. Save daily aggregated phase data to indicator_data (as before)
             write_indicator_data_to_db(df_phases_daily, "phase_classification", conn)
-
-            # 3. Save per-ticker phase details to phase_details (NEW)
             write_phase_details_to_db(df_phases_detail, conn)
 
-            # 4. Resample for plotting (e.g., weekly)
             df_phases_daily.index = pd.to_datetime(df_phases_daily.index, errors="coerce")
             df_phases_resampled = df_phases_daily.resample(config.PHASE_PLOT_INTERVAL).last()
 
-            # 5. Plot phases
             save_phase_plots(phases, df_phases_resampled)
             save_phases_breakdown(df_phases_daily, df_phases_resampled)
             events_logger.info("Phase plots saved")
 
-        # 6. Indicator computations (as in your original code)
+        # 8) Other indicators
         indicator_tasks = [
             ("adv_decline", compute_adv_decline),
             ("adv_decline_volume", compute_adv_decline_volume),
@@ -613,58 +863,52 @@ def main():
             ("trin", compute_trin),
         ]
 
-        # Keep references to each indicator's output
         computed_indicators = {}
-
-        for indicator_name, compute_func in indicator_tasks:
+        for indicator_name, func_ in indicator_tasks:
             events_logger.info(f"Starting computation for {indicator_name}")
             result_df_daily = run_indicator(
                 indicator_name=indicator_name,
                 data_dict=data_dict,
-                compute_func=lambda cdf, vdf, hdf, ldf: compute_func(cdf, vdf, hdf, ldf)
+                compute_func=lambda cdf, vdf, hdf, ldf: func_(cdf, vdf, hdf, ldf)
             )
 
             if result_df_daily.empty:
-                logging.warning(f"{indicator_name} returned an empty DataFrame, skipping.")
-                events_logger.warning(f"{indicator_name} is empty, skipping.")
+                logging.warning(f"{indicator_name} returned empty. Skipping.")
+                events_logger.warning(f"{indicator_name} is empty.")
                 continue
 
-            # Store indicator result in DB
             write_indicator_data_to_db(result_df_daily, indicator_name, conn)
-            events_logger.info(f"Inserted {indicator_name} results into DB")
+            events_logger.info(f"Inserted {indicator_name} to DB")
 
-            # Plot indicator
             result_df_daily.index = pd.to_datetime(result_df_daily.index, errors="coerce")
-            if not isinstance(result_df_daily.index, pd.DatetimeIndex):
-                logging.warning(f"{indicator_name} index could not be converted to DatetimeIndex, skipping.")
-                continue
-            if result_df_daily.index.hasnans:
-                logging.warning(f"{indicator_name} index has NaT values, skipping.")
+            if not isinstance(result_df_daily.index, pd.DatetimeIndex) or result_df_daily.index.hasnans:
+                logging.warning(f"{indicator_name} index invalid. Skipping plot.")
                 continue
 
             result_df_resampled = result_df_daily.resample(config.INDICATOR_PLOT_INTERVAL).mean()
             save_indicator_plots(indicator_name, result_df_resampled)
-            events_logger.info(f"Saved plots for {indicator_name}")
+            events_logger.info(f"Saved {indicator_name} plots")
 
-            # Keep the daily DataFrame for the "latest values" report
             computed_indicators[indicator_name] = result_df_daily
 
-        # 7. Save the latest breadth values & phases breakdown (as before)
+        # 9) Extreme volume
+        export_extreme_volumes(conn, z_threshold=2.0)
+
+        # 10) Save latest breadth
         save_latest_breadth_values(
             df_phases_daily,
             computed_indicators,
             output_file=os.path.join(config.RESULTS_DIR, "breadth_values.txt")
         )
-        events_logger.info("Saved latest breadth & phase values to 'breadth_values.txt'")
+        events_logger.info("Saved latest breadth & phase data")
 
-        # 8. Detect and log changes (NEW)
+        # 11) Detect changes
         detect_and_log_changes(
             conn,
             phase_changes_file=os.path.join(config.RESULTS_DIR, "phase_changes.txt"),
             price_sma_changes_file=os.path.join(config.RESULTS_DIR, "price_sma_changes.txt")
         )
-
-        events_logger.info("Logged phase/indicator changes to 'changes_detected.txt'")
+        events_logger.info("Logged phase/indicator changes")
 
         logging.info("All tasks completed successfully.")
         events_logger.info("END of main program")
