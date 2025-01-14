@@ -1,52 +1,52 @@
 === Latest Phase Breakdown ===
-Date: 2025-01-10
-Bullish: 12.92%
-Caution: 36.36%
-Distribution: 21.77%
-Bearish: 23.68%
-Recuperation: 3.35%
-Accumulation: 1.91%
+Date: 2025-01-13
+Bullish: 13.85%
+Caution: 33.60%
+Distribution: 9.98%
+Bearish: 20.37%
+Recuperation: 5.70%
+Accumulation: 0.61%
 
 === Latest Values for adv_decline ===
-Date: 2025-01-10
-AdvanceDeclineLine = 7770.0000, Z-score = 1.1616, Percentile = 79.49%
+Date: 2025-01-13
+AdvanceDeclineLine = 9225.0000, Z-score = 1.2050, Percentile = 80.56%
 
 === Latest Values for adv_decline_volume ===
-Date: 2025-01-10
-AdvDeclVolumeLine = 76975259896.0000, Z-score = 1.1984, Percentile = 86.33%
+Date: 2025-01-13
+AdvDeclVolumeLine = 95741006059.0000, Z-score = 1.1836, Percentile = 85.86%
 
 === Latest Values for new_high_low ===
-Date: 2025-01-10
-NewHighCount = 5.0000, Z-score = -0.9145, Percentile = 12.15%
-NewLowCount = 25.0000, Z-score = 0.2460, Percentile = 84.81%
-NHNL_Diff = -20.0000, Z-score = -0.9287, Percentile = 11.90%
-NHNL_Ratio = 0.2000, Z-score = -0.5257, Percentile = 15.69%
+Date: 2025-01-13
+NewHighCount = 1.0000, Z-score = -1.0253, Percentile = 6.31%
+NewLowCount = 2.0000, Z-score = -0.3883, Percentile = 34.34%
+NHNL_Diff = -1.0000, Z-score = -0.5116, Percentile = 21.21%
+NHNL_Ratio = 0.5000, Z-score = -0.5248, Percentile = 22.34%
 
 === Latest Values for percent_above_ma ===
-Date: 2025-01-10
-PercentAboveMA = 51.1962, Z-score = -0.8659, Percentile = 17.72%
+Date: 2025-01-13
+PercentAboveMA = 48.0652, Z-score = -0.9525, Percentile = 19.19%
 
 === Latest Values for mcclellan ===
-Date: 2025-01-10
-McClellanOsc = -15.2929, Z-score = -0.8534, Percentile = 19.24%
-McClellanSum = -170.1732, Z-score = -1.8537, Percentile = 4.81%
+Date: 2025-01-13
+McClellanOsc = -5.6608, Z-score = -0.2531, Percentile = 40.66%
+McClellanSum = -206.9939, Z-score = -1.8202, Percentile = 4.29%
 
 === Latest Values for fear_greed ===
-Date: 2025-01-10
-FearGreedIndex = -1.4354, Z-score = -1.9515, Percentile = 2.78%
+Date: 2025-01-13
+FearGreedIndex = 74.3341, Z-score = 0.6829, Percentile = 71.97%
 
 === Latest Values for trend_intensity_index ===
-Date: 2025-01-10
-TrendIntensityIndex = 13.1579, Z-score = -2.1341, Percentile = 1.77%
+Date: 2025-01-13
+TrendIntensityIndex = 22.4033, Z-score = -1.6523, Percentile = 8.08%
 
 === Latest Values for chaikin_volatility ===
-Date: 2025-01-10
-ChaikinVolatility = -3.7305, Z-score = -0.5434, Percentile = 28.57%
+Date: 2025-01-13
+ChaikinVolatility = 9.3227, Z-score = 0.4674, Percentile = 69.17%
 
 === Latest Values for chaikin_money_flow ===
-Date: 2025-01-10
-ChaikinMoneyFlow = -0.1002, Z-score = -1.4319, Percentile = 9.87%
+Date: 2025-01-13
+ChaikinMoneyFlow = -0.0513, Z-score = -0.8217, Percentile = 23.74%
 
 === Latest Values for trin ===
-Date: 2025-01-10
-TRIN = 1.0907, Z-score = -0.2496, Percentile = 55.58%
+Date: 2025-01-13
+TRIN = 3.7248, Z-score = 1.3737, Percentile = 90.89%
