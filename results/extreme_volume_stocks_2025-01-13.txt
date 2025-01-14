@@ -1,1 +1,19 @@
-Extreme Volume Stocks for 2025-01-13 (Z-Threshold: 2.0):\n\nAWK: Dev_20_Z = 2.81, Dev_63_Z = 2.31\nAMT: Dev_20_Z = 2.81, Dev_63_Z = 2.31\nAIG: Dev_20_Z = 2.81, Dev_63_Z = 2.31\nAME: Dev_20_Z = 2.81, Dev_63_Z = 2.31\nAMP: Dev_20_Z = 2.81, Dev_63_Z = 2.31\nCSGP: Dev_20_Z = 2.16, Dev_63_Z = 2.46\nCTVA: Dev_20_Z = 2.16, Dev_63_Z = 2.46\nCTRA: Dev_20_Z = 3.87, Dev_63_Z = 5.37\nENPH: Dev_20_Z = 10.08, Dev_63_Z = 12.39\nEXPE: Dev_20_Z = 1.82, Dev_63_Z = 2.42\nMSI: Dev_20_Z = 1.64, Dev_63_Z = 2.33\nNVDA: Dev_20_Z = 2.15, Dev_63_Z = 1.35\nNVR: Dev_20_Z = 2.15, Dev_63_Z = 1.35\nLUV: Dev_20_Z = 3.60, Dev_63_Z = 3.65\nVZ: Dev_20_Z = 1.80, Dev_63_Z = 2.11\nVRTX: Dev_20_Z = 1.80, Dev_63_Z = 2.11\nVTRS: Dev_20_Z = 1.80, Dev_63_Z = 2.11\n
+Extreme Volume Stocks for 2025-01-13 (Z-Threshold: 2.0):
+
+AIG: Dev_20_Z = 2.81, Dev_63_Z = 2.31
+AME: Dev_20_Z = 2.81, Dev_63_Z = 2.31
+AWK: Dev_20_Z = 2.81, Dev_63_Z = 2.31
+AMP: Dev_20_Z = 2.81, Dev_63_Z = 2.31
+AMT: Dev_20_Z = 2.81, Dev_63_Z = 2.31
+CSGP: Dev_20_Z = 2.16, Dev_63_Z = 2.46
+CTVA: Dev_20_Z = 2.16, Dev_63_Z = 2.46
+CTRA: Dev_20_Z = 3.87, Dev_63_Z = 5.37
+ENPH: Dev_20_Z = 10.08, Dev_63_Z = 12.39
+EXPE: Dev_20_Z = 1.82, Dev_63_Z = 2.42
+MSI: Dev_20_Z = 1.64, Dev_63_Z = 2.33
+NVDA: Dev_20_Z = 2.15, Dev_63_Z = 1.35
+NVR: Dev_20_Z = 2.15, Dev_63_Z = 1.35
+LUV: Dev_20_Z = 3.60, Dev_63_Z = 3.65
+VTRS: Dev_20_Z = 1.80, Dev_63_Z = 2.11
+VZ: Dev_20_Z = 1.80, Dev_63_Z = 2.11
+VRTX: Dev_20_Z = 1.80, Dev_63_Z = 2.11
