@@ -10,25 +10,49 @@ DB_USER = "myuser"
 DB_PASS = "mypassword"
 
 # ------------------
-# ADDED: For dynamic pool sizing
+# NEW: For dynamic pool sizing
 # ------------------
 MINCONN = 1
 MAXCONN = 20
 
+# ------------------
+# NEW: DB Connection Retry Settings
+# ------------------
+DB_RETRY_ATTEMPTS = 3
+DB_RETRY_DELAY = 5  # seconds
+
 # ====================
 # DATA RETRIEVAL
 # ====================
-# In this version we do not fetch from Yahoo or elsewhere,
-# but you can still set these if you plan to filter DB data by date, etc.
 START_DATE = "2024-01-01"
 END_DATE = None
-DATA_FETCH_INTERVAL = "1d"  # This is no longer used here, but kept for reference
+
+# ------------------
+# NEW: Address for the list of stocks
+# ------------------
+STOCK_LIST_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+
+# ------------------
+# Optionally choose data source or other logic
+# (e.g., 'WIKI', 'LOCAL_FILE', etc.)
+# ------------------
+STOCK_LIST_SOURCE = "WIKI"
 
 # ====================
 # MOVING AVERAGES
 # ====================
 MA_SHORT = 50
 MA_LONG = 200
+
+# ------------------
+# NEW: for compute_new_high_low default lookback
+# ------------------
+NEWHIGHLOW_LOOKBACK = 252
+
+# ------------------
+# NEW: for compute_percent_above_ma default window
+# ------------------
+PERCENTABOVE_MA_WINDOW = 200
 
 # ====================
 # PLOT SETTINGS
@@ -61,7 +85,6 @@ RESULTS_DIR = "results"
 # ==========================================
 # NEW: Intervals for phase & indicator plots
 # ==========================================
-# Valid Pandas offset aliases include 'D', 'W', 'M', 'Q', 'Y', etc.
 PHASE_PLOT_INTERVAL = "W"       # e.g. weekly
 INDICATOR_PLOT_INTERVAL = "W"   # e.g. weekly
 
@@ -69,9 +92,9 @@ INDICATOR_PLOT_INTERVAL = "W"   # e.g. weekly
 # Cache size & memory threshold
 # ------------------
 MAX_ROLLING_MEANS_CACHE_SIZE = 2000
-MAX_MEMORY_PERCENT = 95  # e.g., if memory usage goes above 95%, consider skipping
+MAX_MEMORY_PERCENT = 95
 
 # ====================
 # THREAD POOL SETTINGS
 # ====================
-MAX_WORKERS = 10  # <--- Adjust thread pool concurrency
+MAX_WORKERS = 10

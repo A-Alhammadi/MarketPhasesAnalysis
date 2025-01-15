@@ -1,4 +1,4 @@
-# analysis/indicators/volume_indicators.py
+# volume_indicators.py
 
 import logging
 import os
@@ -7,101 +7,128 @@ import psycopg2.extras
 import config
 import numpy as np
 
+
 def compute_and_store_volume_mas(data_dict: dict, conn):
     """
     For each ticker, compute the 10-day and 20-day volume MAs, store in volume_ma_data table.
+    Skips any rows with missing/NaN/zero volume.
     """
     if not data_dict:
         return
-    
+
     cur = conn.cursor()
     records = []
+
     for ticker, df in data_dict.items():
+        # Must have data and a Volume column
         if df.empty or "Volume" not in df.columns:
             continue
-        
+
+        # Drop rows where Volume is NaN or zero
+        df = df.dropna(subset=["Volume"])
+        df = df[df["Volume"] != 0]
+        if df.empty:
+            continue
+
         df.sort_index(inplace=True)
         df["Volume"] = df["Volume"].astype(float)
-        
+
         df["vol_ma_10"] = df["Volume"].rolling(window=10, min_periods=1).mean()
         df["vol_ma_20"] = df["Volume"].rolling(window=20, min_periods=1).mean()
-        
+
         for dt_, row in df.iterrows():
             trade_date = dt_.date()
             vol_ma10 = row["vol_ma_10"]
             vol_ma20 = row["vol_ma_20"]
-            
-            vol_ma10 = float(vol_ma10) if pd.notna(vol_ma10) else None
-            vol_ma20 = float(vol_ma20) if pd.notna(vol_ma20) else None
-            
-            records.append((ticker, trade_date, vol_ma10, vol_ma20))
-    
-    insert_query = """
-        INSERT INTO volume_ma_data
-          (ticker, trade_date, vol_ma_10, vol_ma_20)
-        VALUES %s
-        ON CONFLICT (ticker, trade_date) DO UPDATE
-          SET vol_ma_10 = EXCLUDED.vol_ma_10,
-              vol_ma_20 = EXCLUDED.vol_ma_20
-    """
-    psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
-    conn.commit()
+
+            # If either MA is NaN, skip
+            if pd.isna(vol_ma10) or pd.isna(vol_ma20):
+                continue
+
+            records.append((ticker, trade_date, float(vol_ma10), float(vol_ma20)))
+
+    if records:
+        insert_query = """
+            INSERT INTO volume_ma_data
+              (ticker, trade_date, vol_ma_10, vol_ma_20)
+            VALUES %s
+            ON CONFLICT (ticker, trade_date) DO UPDATE
+              SET vol_ma_10 = EXCLUDED.vol_ma_10,
+                  vol_ma_20 = EXCLUDED.vol_ma_20
+        """
+        psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
+        conn.commit()
+    else:
+        logging.info("No valid records to insert into volume_ma_data.")
+
     cur.close()
 
 
 def compute_and_store_volume_ma_deviation(data_dict: dict, conn):
     """
     Calculate how far Volume is from its 20-day & 63-day MAs, store in volume_ma_deviation.
+    Skips rows with missing/NaN/zero volume or missing MAs.
     """
     if not data_dict:
         return
-    
+
     cur = conn.cursor()
     records = []
-    
+
     for ticker, df in data_dict.items():
         if df.empty or "Volume" not in df.columns:
             continue
-        
+
+        # Drop rows where Volume is NaN or zero
+        df = df.dropna(subset=["Volume"])
+        df = df[df["Volume"] != 0]
+        if df.empty:
+            continue
+
         df.sort_index(inplace=True)
         df["Volume"] = df["Volume"].astype(float)
-        
+
         df["vol_ma_20"] = df["Volume"].rolling(window=20, min_periods=1).mean()
         df["vol_ma_63"] = df["Volume"].rolling(window=63, min_periods=1).mean()
-        
+
         df["dev_20"] = ((df["Volume"] - df["vol_ma_20"]) / df["vol_ma_20"]) * 100
         df["dev_63"] = ((df["Volume"] - df["vol_ma_63"]) / df["vol_ma_63"]) * 100
-        
+
         for dt_, row in df.iterrows():
             data_date = dt_.date()
             d20 = row["dev_20"]
             d63 = row["dev_63"]
-            
-            d20 = float(d20) if pd.notna(d20) else None
-            d63 = float(d63) if pd.notna(d63) else None
-            
-            if d20 is None or d63 is None:
+
+            # If dev_20 or dev_63 is NaN, skip
+            if pd.isna(d20) or pd.isna(d63):
                 continue
-            records.append((ticker, data_date, d20, d63))
-    
-    insert_query = """
-        INSERT INTO volume_ma_deviation
-          (ticker, data_date, dev_20, dev_63)
-        VALUES %s
-        ON CONFLICT (ticker, data_date) DO UPDATE
-          SET dev_20 = EXCLUDED.dev_20,
-              dev_63 = EXCLUDED.dev_63
-    """
-    psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
-    conn.commit()
+
+            records.append((ticker, data_date, float(d20), float(d63)))
+
+    if records:
+        insert_query = """
+            INSERT INTO volume_ma_deviation
+              (ticker, data_date, dev_20, dev_63)
+            VALUES %s
+            ON CONFLICT (ticker, data_date) DO UPDATE
+              SET dev_20 = EXCLUDED.dev_20,
+                  dev_63 = EXCLUDED.dev_63
+        """
+        psycopg2.extras.execute_values(cur, insert_query, records, page_size=1000)
+        conn.commit()
+    else:
+        logging.info("No valid records to insert into volume_ma_deviation.")
+
     cur.close()
+
 
 def export_extreme_volumes(conn, z_threshold=2.0):
     """
     Exports stocks with extreme volume deviations based on z-scores.
+    Only uses rows if dev_20 and dev_63 are non-null in the DB.
     """
     cur = conn.cursor()
-    
+
     # 1) Find the last date in volume_ma_deviation
     cur.execute("SELECT MAX(data_date) FROM volume_ma_deviation;")
     row = cur.fetchone()
@@ -110,38 +137,39 @@ def export_extreme_volumes(conn, z_threshold=2.0):
         cur.close()
         return
     last_date = row[0]  # date object
-    
+
     # 2) Query the data for that date
     query = """
         SELECT ticker, dev_20, dev_63
         FROM volume_ma_deviation
         WHERE data_date = %s
+          AND dev_20 IS NOT NULL
+          AND dev_63 IS NOT NULL
     """
     cur.execute(query, (last_date,))
     rows = cur.fetchall()
     cur.close()
-    
+
     if not rows:
         logging.info(f"No volume deviation data on {last_date}.")
         return
-    
+
     # 3) Create a DataFrame
-    import pandas as pd
     df = pd.DataFrame(rows, columns=["Ticker", "Dev_20", "Dev_63"])
-    
+
     # Convert Decimal to float
     df["Dev_20"] = df["Dev_20"].astype(float)
     df["Dev_63"] = df["Dev_63"].astype(float)
-    
+
     # Compute z-scores
     df["Dev_20_Z"] = (df["Dev_20"] - df["Dev_20"].mean()) / df["Dev_20"].std()
     df["Dev_63_Z"] = (df["Dev_63"] - df["Dev_63"].mean()) / df["Dev_63"].std()
-    
+
     # Filter stocks based on z_threshold
     extremes = df[
         (df["Dev_20_Z"].abs() >= z_threshold) | (df["Dev_63_Z"].abs() >= z_threshold)
     ]
-    
+
     # 4) Write results to a file
     if not extremes.empty:
         file_name = os.path.join(config.RESULTS_DIR, f"extreme_volume_stocks_{last_date}.txt")
@@ -155,4 +183,3 @@ def export_extreme_volumes(conn, z_threshold=2.0):
         logging.info(f"Extreme volume file created: {file_name}")
     else:
         logging.info(f"No stocks exceeded z-threshold {z_threshold} on {last_date}.")
-

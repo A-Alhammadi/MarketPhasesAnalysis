@@ -1,3 +1,5 @@
+# db_manager.py
+
 import logging
 import psycopg2
 import psycopg2.extras
@@ -8,10 +10,6 @@ import config
 
 logging.basicConfig(level=logging.INFO)
 
-# Retry configuration
-RETRY_ATTEMPTS = 3
-RETRY_DELAY = 5  # seconds
-
 class DatabasePool:
     _instance = None
     _pool = None
@@ -21,7 +19,7 @@ class DatabasePool:
             cls._instance = super(DatabasePool, cls).__new__(cls)
 
             # Attempt to create the connection pool with retries
-            for attempt in range(RETRY_ATTEMPTS):
+            for attempt in range(config.DB_RETRY_ATTEMPTS):
                 try:
                     cls._instance._pool = ThreadedConnectionPool(
                         minconn=config.MINCONN,
@@ -37,8 +35,8 @@ class DatabasePool:
                     break
                 except psycopg2.Error as e:
                     logging.error(f"Failed to create connection pool (attempt {attempt+1}): {e}")
-                    if attempt < RETRY_ATTEMPTS - 1:
-                        time.sleep(RETRY_DELAY)
+                    if attempt < config.DB_RETRY_ATTEMPTS - 1:
+                        time.sleep(config.DB_RETRY_DELAY)
                     else:
                         logging.error("Failed to create the connection pool after multiple attempts.")
                         raise
@@ -49,14 +47,14 @@ class DatabasePool:
         """Get a connection from the pool with retry logic and proper error handling."""
         conn = None
 
-        for attempt in range(RETRY_ATTEMPTS):
+        for attempt in range(config.DB_RETRY_ATTEMPTS):
             try:
                 conn = self._pool.getconn()
                 break
             except psycopg2.Error as e:
                 logging.error(f"Database connection error (attempt {attempt+1}): {e}")
-                if attempt < RETRY_ATTEMPTS - 1:
-                    time.sleep(RETRY_DELAY)
+                if attempt < config.DB_RETRY_ATTEMPTS - 1:
+                    time.sleep(config.DB_RETRY_DELAY)
                 else:
                     logging.error("Failed to establish a database connection after multiple attempts.")
                     raise

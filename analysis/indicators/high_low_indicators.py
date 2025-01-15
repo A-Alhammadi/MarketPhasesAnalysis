@@ -9,12 +9,17 @@ from analysis.indicators.indicator_template import (
     run_indicator, warnings_aggregator, df_registry
 )
 from perf_utils import measure_time
+import config
 
 @measure_time
-def compute_new_high_low(close_df: pd.DataFrame, volume_df: pd.DataFrame,
-                         high_df: pd.DataFrame, low_df: pd.DataFrame, lookback=252) -> pd.DataFrame:
+def compute_new_high_low(close_df: pd.DataFrame,
+                         volume_df: pd.DataFrame,
+                         high_df: pd.DataFrame,
+                         low_df: pd.DataFrame,
+                         lookback=config.NEWHIGHLOW_LOOKBACK) -> pd.DataFrame:
     """
-    New High / New Low count. 
+    New High / New Low count.
+    The default lookback is now pulled from config.NEWHIGHLOW_LOOKBACK.
     """
     if close_df.empty:
         warnings_aggregator.set_need_close_warning()
@@ -43,11 +48,14 @@ def compute_new_high_low(close_df: pd.DataFrame, volume_df: pd.DataFrame,
 
 
 @measure_time
-def compute_percent_above_ma(close_df: pd.DataFrame, volume_df: pd.DataFrame,
-                             high_df: pd.DataFrame, low_df: pd.DataFrame, 
-                             ma_window=200) -> pd.DataFrame:
+def compute_percent_above_ma(close_df: pd.DataFrame,
+                             volume_df: pd.DataFrame,
+                             high_df: pd.DataFrame,
+                             low_df: pd.DataFrame,
+                             ma_window=config.PERCENTABOVE_MA_WINDOW) -> pd.DataFrame:
     """
     Percentage of stocks above the specified moving average.
+    The default ma_window is now pulled from config.PERCENTABOVE_MA_WINDOW.
     """
     if close_df.empty:
         warnings_aggregator.set_need_close_warning()
