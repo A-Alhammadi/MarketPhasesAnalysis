@@ -1,8 +1,8 @@
 # main.py
 
+import logging
 import os
 import sys
-import logging
 import pandas as pd
 import matplotlib
 import random
@@ -20,20 +20,15 @@ from db_manager import DBConnectionManager, db_pool
 from perf_utils import measure_time, log_memory_usage
 from plotting import save_phase_plots, save_indicator_plots
 
-# NEW IMPORTS
+# Additional imports
 from ticker_utils import get_sp500_tickers
-from reporting_utils import (
-    save_latest_breadth_values,
-    save_phases_breakdown
-)
+from reporting_utils import save_latest_breadth_values, save_phases_breakdown
 
 # Phase classification
 from phase_analysis import classify_phases, log_rolling_cache_stats
 
 # Indicators
-from analysis.indicators.indicator_template import (
-    clear_caches, run_indicator
-)
+from analysis.indicators.indicator_template import clear_caches, run_indicator
 from analysis.indicators.breadth_indicators import (
     compute_adv_decline,
     compute_adv_decline_volume,
@@ -47,13 +42,9 @@ from analysis.indicators.money_flow_indicators import (
     compute_index_of_fear_greed,
     compute_chaikin_money_flow
 )
-from analysis.indicators.trend_indicators import (
-    compute_trend_intensity_index
-)
-from analysis.indicators.volatility_indicators import (
-    compute_chaikin_volatility,
-    compute_trin
-)
+from analysis.indicators.trend_indicators import compute_trend_intensity_index
+from analysis.indicators.volatility_indicators import compute_chaikin_volatility, compute_trin
+
 matplotlib.use("Agg")  # Headless mode
 
 # db_helpers imports
@@ -62,7 +53,6 @@ from db_helpers import (
     write_phase_details_to_db,
     detect_and_log_changes,
     write_indicator_data_to_db,
-    read_ticker_data_from_db,
     batch_fetch_from_db
 )
 from analysis.indicators.volume_indicators import (
@@ -70,43 +60,45 @@ from analysis.indicators.volume_indicators import (
     compute_and_store_volume_ma_deviation,
     export_extreme_volumes
 )
-from analysis.indicators.price_indicators import (
-    compute_and_store_price_ma_deviation
-)
+from analysis.indicators.price_indicators import compute_and_store_price_ma_deviation
 
-###############################################################################
-# A helper for profiling (remains in main.py, optional)
-###############################################################################
+# Use the updated run_sector_analysis that saves data to sector_analysis
+from sector_analysis import run_sector_analysis
+
+# For profiling
 profiler = cProfile.Profile()
 profiler.enable()
 
 @atexit.register
 def stop_profiler():
     profiler.disable()
+    if not os.path.exists(config.RESULTS_DIR):
+        os.makedirs(config.RESULTS_DIR)
     profile_stats_path = os.path.join(config.RESULTS_DIR, "profile_stats.txt")
     with open(profile_stats_path, "w") as f:
         stats = pstats.Stats(profiler, stream=f).sort_stats("cumulative")
         stats.print_stats()
 
 
-###############################################################################
-# MAIN ENTRY POINT
-###############################################################################
 @measure_time
 def main():
     """
     Main execution flow:
-      1) Create tables if not found.
-      2) Get a list of tickers (e.g. from S&P500).
-      3) Fetch all existing data from DB for those tickers.
+      1) Create tables if not found (including 'sector_data').
+      2) Get list of tickers (e.g., S&P 500).
+      3) Fetch existing data from DB for those tickers (from price_data).
       4) Compute & store volume MAs (10,20).
       5) Compute & store price % dev (50/200).
       6) Compute & store volume % dev (20/63).
-      7) Classify phases & store in DB => also do plots
-      8) Compute other indicators & store => also do plots
-      9) Export "extreme volume" file
-      10) Save "latest breadth" text
-      11) Detect/log changes (phase, SMA crosses)
+      7) Classify phases & store => also do plots.
+      8) Compute other indicators & store => also do plots.
+      9) Export "extreme volume" file.
+      10) Save "latest breadth" text.
+      11) Detect/log changes (phase, SMA crosses).
+      12) Sector analysis from 'sector_data':
+          - daily returns, cumulative returns,
+          - rolling correlation vs SPY, relative performance,
+          - correlation heatmap of all ETFs.
     """
 
     if not os.path.exists(config.RESULTS_DIR):
@@ -139,15 +131,19 @@ def main():
             sys.exit(1)
 
         db_pool.monitor_pool()
+
+        # 1) Ensure all necessary tables (including a clean sector_analysis) are created
         create_tables(conn)
         events_logger.info("Tables ensured in DB")
 
+        # 2) Tickers (S&P 500 from Wikipedia, for example)
         tickers = get_sp500_tickers()
         if not tickers:
             logging.error("No tickers found. Exiting.")
             events_logger.error("No tickers found. Exiting.")
             sys.exit(1)
 
+        # 3) Fetch data from DB's 'price_data' table:
         log_memory_usage("Before batch_fetch_from_db")
         data_dict = batch_fetch_from_db(tickers, conn)
         db_pool.monitor_pool()
@@ -158,7 +154,7 @@ def main():
             events_logger.warning("No data found. Exiting.")
             sys.exit(0)
 
-        # 4) Volume MAs (10, 20)
+        # 4) Volume MAs
         compute_and_store_volume_mas(data_dict, conn)
 
         # 5) Price dev (50, 200)
@@ -167,7 +163,7 @@ def main():
         # 6) Volume dev (20, 63)
         compute_and_store_volume_ma_deviation(data_dict, conn)
 
-        # 7) Phases classification
+        # 7) Classify phases
         phases = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
         df_phases_detail, df_phases_daily = classify_phases(
             data_dict,
@@ -251,9 +247,29 @@ def main():
         )
         events_logger.info("Logged phase/indicator changes")
 
+        # 12) Sector analysis from 'sector_data'
+        # Here we list SPY plus all 11 Select Sector SPDRs:
+        #   XLB, XLC, XLE, XLF, XLI, XLK, XLP, XLU, XLV, XLY, XLRE
+        etf_list = [
+            "SPY",   # Benchmark
+            "XLB",   # Materials
+            "XLC",   # Communication Services
+            "XLE",   # Energy
+            "XLF",   # Financials
+            "XLI",   # Industrials
+            "XLK",   # Technology
+            "XLP",   # Consumer Staples
+            "XLU",   # Utilities
+            "XLV",   # Health Care
+            "XLY",   # Consumer Discretionary
+            "XLRE"   # Real Estate
+        ]
+        events_logger.info("Starting sector analysis from 'sector_data' with all 11 sectors + SPY...")
+        run_sector_analysis(conn, etf_list)
+        events_logger.info("Sector analysis complete.")
+
         logging.info("All tasks completed successfully.")
         events_logger.info("END of main program")
-
 
 if __name__ == "__main__":
     main()

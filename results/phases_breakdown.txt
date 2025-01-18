@@ -1,452 +1,868 @@
 === Phases Breakdown ===
 
 >> Daily Phases Breakdown:
-Date: 2025-01-13
-Bullish: 13.85%
-Caution: 33.60%
-Distribution: 9.98%
-Bearish: 20.37%
-Recuperation: 5.70%
-Accumulation: 0.61%
+Date: 2025-01-17
+Bullish: 27.83%
+Caution: 30.62%
+Distribution: 7.75%
+Bearish: 23.66%
+Recuperation: 5.77%
+Accumulation: 2.98%
 
 >> Resampled Phases Breakdown:
-Date: 2024-01-07
-  Bullish: 54.58%
-  Caution: 3.26%
-  Distribution: 3.46%
-  Bearish: 5.50%
-  Recuperation: 13.85%
-  Accumulation: 18.53%
+Date: 2023-01-08
+  Bullish: 43.94%
+  Caution: 15.11%
+  Distribution: 7.16%
+  Bearish: 14.12%
+  Recuperation: 11.73%
+  Accumulation: 7.95%
 
-Date: 2024-01-14
-  Bullish: 64.77%
-  Caution: 3.87%
-  Distribution: 2.85%
-  Bearish: 9.37%
-  Recuperation: 7.33%
-  Accumulation: 11.00%
-
-Date: 2024-01-21
-  Bullish: 60.29%
-  Caution: 6.92%
-  Distribution: 5.50%
-  Bearish: 13.03%
-  Recuperation: 6.11%
-  Accumulation: 7.33%
-
-Date: 2024-01-28
-  Bullish: 59.47%
-  Caution: 9.16%
-  Distribution: 7.54%
-  Bearish: 11.00%
-  Recuperation: 4.48%
-  Accumulation: 7.54%
-
-Date: 2024-02-04
-  Bullish: 56.01%
-  Caution: 14.66%
-  Distribution: 6.92%
-  Bearish: 10.59%
-  Recuperation: 6.72%
-  Accumulation: 4.28%
-
-Date: 2024-02-11
-  Bullish: 54.79%
-  Caution: 13.65%
-  Distribution: 9.98%
-  Bearish: 14.26%
-  Recuperation: 3.67%
-  Accumulation: 2.85%
-
-Date: 2024-02-18
-  Bullish: 52.14%
-  Caution: 16.70%
-  Distribution: 10.18%
-  Bearish: 14.66%
-  Recuperation: 3.46%
-  Accumulation: 2.04%
-
-Date: 2024-02-25
-  Bullish: 57.03%
-  Caution: 15.07%
-  Distribution: 7.13%
-  Bearish: 10.79%
-  Recuperation: 6.72%
-  Accumulation: 2.44%
-
-Date: 2024-03-03
-  Bullish: 57.23%
-  Caution: 14.87%
-  Distribution: 6.11%
-  Bearish: 13.03%
-  Recuperation: 4.89%
-  Accumulation: 3.05%
-
-Date: 2024-03-10
-  Bullish: 61.30%
-  Caution: 9.98%
-  Distribution: 6.52%
-  Bearish: 10.59%
-  Recuperation: 5.09%
-  Accumulation: 5.70%
-
-Date: 2024-03-17
-  Bullish: 58.25%
-  Caution: 13.03%
-  Distribution: 5.91%
-  Bearish: 11.20%
-  Recuperation: 6.11%
-  Accumulation: 4.68%
-
-Date: 2024-03-24
-  Bullish: 62.53%
-  Caution: 11.61%
-  Distribution: 2.44%
-  Bearish: 13.03%
-  Recuperation: 4.07%
-  Accumulation: 5.50%
-
-Date: 2024-03-31
-  Bullish: 65.38%
-  Caution: 9.16%
-  Distribution: 2.85%
-  Bearish: 7.94%
-  Recuperation: 6.11%
-  Accumulation: 7.74%
-
-Date: 2024-04-07
-  Bullish: 58.86%
-  Caution: 13.44%
-  Distribution: 4.89%
-  Bearish: 10.18%
-  Recuperation: 5.70%
-  Accumulation: 6.11%
-
-Date: 2024-04-14
-  Bullish: 34.62%
-  Caution: 32.99%
-  Distribution: 10.39%
-  Bearish: 13.85%
-  Recuperation: 3.67%
-  Accumulation: 3.67%
-
-Date: 2024-04-21
-  Bullish: 30.14%
-  Caution: 35.85%
-  Distribution: 13.03%
-  Bearish: 13.65%
-  Recuperation: 3.67%
-  Accumulation: 2.85%
-
-Date: 2024-04-28
-  Bullish: 38.09%
-  Caution: 31.36%
-  Distribution: 9.78%
-  Bearish: 14.26%
-  Recuperation: 3.26%
-  Accumulation: 2.44%
-
-Date: 2024-05-05
-  Bullish: 37.47%
-  Caution: 31.36%
-  Distribution: 11.00%
-  Bearish: 12.83%
-  Recuperation: 4.68%
-  Accumulation: 1.83%
-
-Date: 2024-05-12
-  Bullish: 46.84%
-  Caution: 23.63%
-  Distribution: 8.35%
-  Bearish: 12.42%
-  Recuperation: 2.85%
-  Accumulation: 5.09%
-
-Date: 2024-05-19
-  Bullish: 50.92%
-  Caution: 20.16%
-  Distribution: 5.70%
-  Bearish: 9.37%
-  Recuperation: 5.91%
-  Accumulation: 7.13%
-
-Date: 2024-05-26
-  Bullish: 43.99%
-  Caution: 23.22%
-  Distribution: 9.37%
-  Bearish: 14.46%
-  Recuperation: 3.26%
-  Accumulation: 4.89%
-
-Date: 2024-06-02
-  Bullish: 45.01%
-  Caution: 22.00%
-  Distribution: 9.37%
-  Bearish: 12.02%
-  Recuperation: 6.92%
-  Accumulation: 3.87%
-
-Date: 2024-06-09
-  Bullish: 45.01%
-  Caution: 20.98%
-  Distribution: 9.37%
-  Bearish: 13.44%
-  Recuperation: 6.31%
-  Accumulation: 4.07%
-
-Date: 2024-06-16
-  Bullish: 42.36%
-  Caution: 22.00%
-  Distribution: 11.41%
-  Bearish: 15.89%
-  Recuperation: 5.50%
-  Accumulation: 2.85%
-
-Date: 2024-06-23
-  Bullish: 44.81%
-  Caution: 21.38%
-  Distribution: 7.54%
-  Bearish: 16.70%
-  Recuperation: 5.91%
-  Accumulation: 3.67%
-
-Date: 2024-06-30
-  Bullish: 39.31%
-  Caution: 26.07%
-  Distribution: 7.33%
-  Bearish: 18.74%
-  Recuperation: 3.87%
-  Accumulation: 4.68%
-
-Date: 2024-07-07
-  Bullish: 39.31%
-  Caution: 24.24%
-  Distribution: 10.59%
-  Bearish: 19.14%
-  Recuperation: 5.70%
-  Accumulation: 1.02%
-
-Date: 2024-07-14
-  Bullish: 57.64%
-  Caution: 8.96%
-  Distribution: 5.09%
-  Bearish: 14.05%
-  Recuperation: 8.76%
-  Accumulation: 5.50%
-
-Date: 2024-07-21
-  Bullish: 47.66%
-  Caution: 17.92%
-  Distribution: 6.52%
-  Bearish: 14.05%
-  Recuperation: 8.76%
-  Accumulation: 5.09%
-
-Date: 2024-07-28
-  Bullish: 52.34%
-  Caution: 13.03%
-  Distribution: 5.70%
-  Bearish: 10.18%
-  Recuperation: 11.41%
-  Accumulation: 7.33%
-
-Date: 2024-08-04
-  Bullish: 38.70%
-  Caution: 22.40%
-  Distribution: 8.55%
-  Bearish: 14.87%
-  Recuperation: 7.33%
+Date: 2023-01-15
+  Bullish: 57.85%
+  Caution: 6.96%
+  Distribution: 3.18%
+  Bearish: 8.35%
+  Recuperation: 15.51%
   Accumulation: 8.15%
 
-Date: 2024-08-11
-  Bullish: 43.99%
-  Caution: 16.90%
-  Distribution: 8.76%
-  Bearish: 15.89%
-  Recuperation: 6.31%
-  Accumulation: 8.15%
+Date: 2023-01-22
+  Bullish: 48.91%
+  Caution: 14.51%
+  Distribution: 6.56%
+  Bearish: 11.13%
+  Recuperation: 12.52%
+  Accumulation: 6.36%
 
-Date: 2024-08-18
-  Bullish: 53.56%
-  Caution: 10.59%
-  Distribution: 4.28%
-  Bearish: 11.20%
-  Recuperation: 9.16%
-  Accumulation: 11.20%
+Date: 2023-01-29
+  Bullish: 50.50%
+  Caution: 15.11%
+  Distribution: 2.98%
+  Bearish: 6.56%
+  Recuperation: 13.12%
+  Accumulation: 11.73%
 
-Date: 2024-08-25
-  Bullish: 59.27%
-  Caution: 5.30%
-  Distribution: 4.07%
-  Bearish: 10.18%
-  Recuperation: 8.76%
-  Accumulation: 12.42%
+Date: 2023-02-05
+  Bullish: 50.50%
+  Caution: 15.11%
+  Distribution: 5.57%
+  Bearish: 5.96%
+  Recuperation: 4.77%
+  Accumulation: 18.09%
 
-Date: 2024-09-01
-  Bullish: 63.34%
-  Caution: 5.70%
-  Distribution: 1.43%
-  Bearish: 11.00%
+Date: 2023-02-12
+  Bullish: 50.30%
+  Caution: 17.50%
+  Distribution: 3.58%
+  Bearish: 9.34%
   Recuperation: 8.15%
-  Accumulation: 10.39%
+  Accumulation: 11.13%
 
-Date: 2024-09-08
-  Bullish: 47.86%
-  Caution: 15.27%
-  Distribution: 6.52%
-  Bearish: 18.33%
-  Recuperation: 4.48%
-  Accumulation: 7.54%
+Date: 2023-02-19
+  Bullish: 51.09%
+  Caution: 15.31%
+  Distribution: 4.97%
+  Bearish: 10.14%
+  Recuperation: 7.16%
+  Accumulation: 11.33%
 
-Date: 2024-09-15
-  Bullish: 55.60%
-  Caution: 11.00%
-  Distribution: 2.85%
-  Bearish: 12.02%
-  Recuperation: 11.20%
-  Accumulation: 7.33%
+Date: 2023-02-26
+  Bullish: 35.79%
+  Caution: 24.45%
+  Distribution: 9.94%
+  Bearish: 15.51%
+  Recuperation: 9.15%
+  Accumulation: 5.17%
 
-Date: 2024-09-22
-  Bullish: 62.32%
-  Caution: 9.57%
-  Distribution: 1.02%
-  Bearish: 10.18%
-  Recuperation: 12.63%
-  Accumulation: 4.28%
+Date: 2023-03-05
+  Bullish: 40.36%
+  Caution: 24.45%
+  Distribution: 7.55%
+  Bearish: 16.30%
+  Recuperation: 6.96%
+  Accumulation: 4.37%
 
-Date: 2024-09-29
-  Bullish: 62.73%
-  Caution: 7.74%
-  Distribution: 1.63%
-  Bearish: 5.91%
-  Recuperation: 11.61%
-  Accumulation: 10.39%
-
-Date: 2024-10-06
-  Bullish: 60.90%
-  Caution: 9.16%
-  Distribution: 3.05%
-  Bearish: 10.39%
-  Recuperation: 8.96%
-  Accumulation: 7.54%
-
-Date: 2024-10-13
-  Bullish: 60.08%
-  Caution: 9.78%
-  Distribution: 2.85%
-  Bearish: 8.76%
-  Recuperation: 8.35%
-  Accumulation: 10.18%
-
-Date: 2024-10-20
-  Bullish: 61.91%
-  Caution: 9.57%
-  Distribution: 2.85%
-  Bearish: 7.33%
-  Recuperation: 7.94%
-  Accumulation: 10.39%
-
-Date: 2024-10-27
-  Bullish: 49.49%
-  Caution: 21.38%
-  Distribution: 3.05%
-  Bearish: 13.85%
-  Recuperation: 5.70%
-  Accumulation: 6.52%
-
-Date: 2024-11-03
-  Bullish: 40.12%
-  Caution: 30.96%
-  Distribution: 4.89%
-  Bearish: 13.44%
-  Recuperation: 8.15%
-  Accumulation: 2.44%
-
-Date: 2024-11-10
-  Bullish: 51.12%
-  Caution: 17.52%
-  Distribution: 6.31%
-  Bearish: 11.41%
-  Recuperation: 5.50%
-  Accumulation: 8.15%
-
-Date: 2024-11-17
-  Bullish: 44.60%
-  Caution: 19.76%
-  Distribution: 12.02%
-  Bearish: 14.87%
-  Recuperation: 3.67%
-  Accumulation: 5.09%
-
-Date: 2024-11-24
-  Bullish: 51.73%
-  Caution: 16.90%
-  Distribution: 10.59%
-  Bearish: 12.02%
-  Recuperation: 6.31%
-  Accumulation: 2.44%
-
-Date: 2024-12-01
-  Bullish: 60.29%
-  Caution: 12.02%
-  Distribution: 7.54%
-  Bearish: 9.98%
-  Recuperation: 7.54%
-  Accumulation: 2.65%
-
-Date: 2024-12-08
-  Bullish: 50.92%
-  Caution: 19.76%
-  Distribution: 8.55%
-  Bearish: 13.24%
-  Recuperation: 4.28%
-  Accumulation: 3.26%
-
-Date: 2024-12-15
-  Bullish: 38.90%
-  Caution: 26.48%
-  Distribution: 12.02%
-  Bearish: 16.09%
-  Recuperation: 5.30%
-  Accumulation: 1.22%
-
-Date: 2024-12-22
-  Bullish: 27.29%
-  Caution: 32.18%
-  Distribution: 17.11%
-  Bearish: 21.18%
-  Recuperation: 1.83%
-  Accumulation: 0.41%
-
-Date: 2024-12-29
-  Bullish: 29.94%
-  Caution: 29.94%
-  Distribution: 13.65%
-  Bearish: 23.22%
-  Recuperation: 2.85%
-  Accumulation: 0.41%
-
-Date: 2025-01-05
-  Bullish: 24.85%
-  Caution: 32.79%
-  Distribution: 12.63%
-  Bearish: 25.87%
-  Recuperation: 3.87%
+Date: 2023-03-12
+  Bullish: 14.51%
+  Caution: 26.24%
+  Distribution: 32.21%
+  Bearish: 26.64%
+  Recuperation: 0.40%
   Accumulation: 0.00%
 
+Date: 2023-03-19
+  Bullish: 13.32%
+  Caution: 22.66%
+  Distribution: 36.38%
+  Bearish: 25.25%
+  Recuperation: 1.99%
+  Accumulation: 0.40%
+
+Date: 2023-03-26
+  Bullish: 16.30%
+  Caution: 21.27%
+  Distribution: 32.21%
+  Bearish: 26.44%
+  Recuperation: 2.39%
+  Accumulation: 1.39%
+
+Date: 2023-04-02
+  Bullish: 34.39%
+  Caution: 20.87%
+  Distribution: 10.14%
+  Bearish: 22.27%
+  Recuperation: 7.95%
+  Accumulation: 4.37%
+
+Date: 2023-04-09
+  Bullish: 26.44%
+  Caution: 24.25%
+  Distribution: 14.71%
+  Bearish: 21.07%
+  Recuperation: 9.15%
+  Accumulation: 4.37%
+
+Date: 2023-04-16
+  Bullish: 34.59%
+  Caution: 16.70%
+  Distribution: 12.13%
+  Bearish: 17.69%
+  Recuperation: 12.92%
+  Accumulation: 5.96%
+
+Date: 2023-04-23
+  Bullish: 33.60%
+  Caution: 17.89%
+  Distribution: 6.36%
+  Bearish: 24.25%
+  Recuperation: 11.13%
+  Accumulation: 6.76%
+
+Date: 2023-04-30
+  Bullish: 34.39%
+  Caution: 13.72%
+  Distribution: 5.77%
+  Bearish: 23.06%
+  Recuperation: 13.12%
+  Accumulation: 9.94%
+
+Date: 2023-05-07
+  Bullish: 33.00%
+  Caution: 10.34%
+  Distribution: 11.13%
+  Bearish: 23.06%
+  Recuperation: 11.93%
+  Accumulation: 10.54%
+
+Date: 2023-05-14
+  Bullish: 34.79%
+  Caution: 10.14%
+  Distribution: 10.74%
+  Bearish: 27.04%
+  Recuperation: 8.35%
+  Accumulation: 8.95%
+
+Date: 2023-05-21
+  Bullish: 36.38%
+  Caution: 6.96%
+  Distribution: 7.55%
+  Bearish: 26.24%
+  Recuperation: 11.93%
+  Accumulation: 10.93%
+
+Date: 2023-05-28
+  Bullish: 30.82%
+  Caution: 10.74%
+  Distribution: 10.74%
+  Bearish: 28.43%
+  Recuperation: 10.74%
+  Accumulation: 8.55%
+
+Date: 2023-06-04
+  Bullish: 43.34%
+  Caution: 6.56%
+  Distribution: 7.16%
+  Bearish: 19.48%
+  Recuperation: 15.51%
+  Accumulation: 7.95%
+
+Date: 2023-06-11
+  Bullish: 41.15%
+  Caution: 12.13%
+  Distribution: 6.36%
+  Bearish: 15.31%
+  Recuperation: 17.50%
+  Accumulation: 7.55%
+
+Date: 2023-06-18
+  Bullish: 51.29%
+  Caution: 6.56%
+  Distribution: 2.98%
+  Bearish: 13.32%
+  Recuperation: 12.33%
+  Accumulation: 13.52%
+
+Date: 2023-06-25
+  Bullish: 46.32%
+  Caution: 9.74%
+  Distribution: 4.17%
+  Bearish: 24.25%
+  Recuperation: 12.72%
+  Accumulation: 2.78%
+
+Date: 2023-07-02
+  Bullish: 53.48%
+  Caution: 2.19%
+  Distribution: 3.38%
+  Bearish: 14.12%
+  Recuperation: 12.33%
+  Accumulation: 14.51%
+
+Date: 2023-07-09
+  Bullish: 50.89%
+  Caution: 6.56%
+  Distribution: 1.99%
+  Bearish: 14.91%
+  Recuperation: 13.72%
+  Accumulation: 11.93%
+
+Date: 2023-07-16
+  Bullish: 57.06%
+  Caution: 2.39%
+  Distribution: 1.39%
+  Bearish: 7.36%
+  Recuperation: 15.71%
+  Accumulation: 16.10%
+
+Date: 2023-07-23
+  Bullish: 60.24%
+  Caution: 2.58%
+  Distribution: 0.40%
+  Bearish: 4.77%
+  Recuperation: 13.32%
+  Accumulation: 18.69%
+
+Date: 2023-07-30
+  Bullish: 58.65%
+  Caution: 6.16%
+  Distribution: 0.40%
+  Bearish: 5.57%
+  Recuperation: 12.33%
+  Accumulation: 16.90%
+
+Date: 2023-08-06
+  Bullish: 46.52%
+  Caution: 14.12%
+  Distribution: 8.35%
+  Bearish: 9.15%
+  Recuperation: 10.93%
+  Accumulation: 10.93%
+
+Date: 2023-08-13
+  Bullish: 40.95%
+  Caution: 20.08%
+  Distribution: 8.35%
+  Bearish: 9.94%
+  Recuperation: 10.93%
+  Accumulation: 9.74%
+
+Date: 2023-08-20
+  Bullish: 25.05%
+  Caution: 35.19%
+  Distribution: 11.93%
+  Bearish: 19.28%
+  Recuperation: 5.37%
+  Accumulation: 3.18%
+
+Date: 2023-08-27
+  Bullish: 24.85%
+  Caution: 35.19%
+  Distribution: 13.72%
+  Bearish: 20.87%
+  Recuperation: 4.17%
+  Accumulation: 1.19%
+
+Date: 2023-09-03
+  Bullish: 48.71%
+  Caution: 15.90%
+  Distribution: 10.54%
+  Bearish: 18.29%
+  Recuperation: 3.98%
+  Accumulation: 2.58%
+
+Date: 2023-09-10
+  Bullish: 35.59%
+  Caution: 23.06%
+  Distribution: 16.50%
+  Bearish: 20.28%
+  Recuperation: 3.18%
+  Accumulation: 1.39%
+
+Date: 2023-09-17
+  Bullish: 29.03%
+  Caution: 29.42%
+  Distribution: 14.71%
+  Bearish: 18.89%
+  Recuperation: 5.17%
+  Accumulation: 2.78%
+
+Date: 2023-09-24
+  Bullish: 19.48%
+  Caution: 28.03%
+  Distribution: 25.25%
+  Bearish: 23.66%
+  Recuperation: 2.58%
+  Accumulation: 0.99%
+
+Date: 2023-10-01
+  Bullish: 17.50%
+  Caution: 27.24%
+  Distribution: 22.86%
+  Bearish: 28.83%
+  Recuperation: 3.58%
+  Accumulation: 0.00%
+
+Date: 2023-10-08
+  Bullish: 16.50%
+  Caution: 27.63%
+  Distribution: 16.90%
+  Bearish: 37.18%
+  Recuperation: 1.79%
+  Accumulation: 0.00%
+
+Date: 2023-10-15
+  Bullish: 22.66%
+  Caution: 19.09%
+  Distribution: 16.10%
+  Bearish: 38.77%
+  Recuperation: 1.99%
+  Accumulation: 1.39%
+
+Date: 2023-10-22
+  Bullish: 11.93%
+  Caution: 20.28%
+  Distribution: 22.66%
+  Bearish: 42.74%
+  Recuperation: 1.79%
+  Accumulation: 0.60%
+
+Date: 2023-10-29
+  Bullish: 5.96%
+  Caution: 19.68%
+  Distribution: 24.65%
+  Bearish: 47.71%
+  Recuperation: 0.99%
+  Accumulation: 0.99%
+
+Date: 2023-11-05
+  Bullish: 27.63%
+  Caution: 14.12%
+  Distribution: 5.17%
+  Bearish: 35.98%
+  Recuperation: 14.71%
+  Accumulation: 2.39%
+
+Date: 2023-11-12
+  Bullish: 30.02%
+  Caution: 11.13%
+  Distribution: 4.77%
+  Bearish: 38.17%
+  Recuperation: 12.92%
+  Accumulation: 2.98%
+
+Date: 2023-11-19
+  Bullish: 38.17%
+  Caution: 6.36%
+  Distribution: 1.79%
+  Bearish: 17.50%
+  Recuperation: 26.44%
+  Accumulation: 9.74%
+
+Date: 2023-11-26
+  Bullish: 39.36%
+  Caution: 4.37%
+  Distribution: 2.19%
+  Bearish: 13.92%
+  Recuperation: 26.64%
+  Accumulation: 13.52%
+
+Date: 2023-12-03
+  Bullish: 40.36%
+  Caution: 4.77%
+  Distribution: 0.99%
+  Bearish: 7.95%
+  Recuperation: 19.28%
+  Accumulation: 26.64%
+
+Date: 2023-12-10
+  Bullish: 40.16%
+  Caution: 5.77%
+  Distribution: 1.59%
+  Bearish: 9.34%
+  Recuperation: 17.69%
+  Accumulation: 25.45%
+
+Date: 2023-12-17
+  Bullish: 43.14%
+  Caution: 4.57%
+  Distribution: 1.59%
+  Bearish: 2.19%
+  Recuperation: 14.91%
+  Accumulation: 33.60%
+
+Date: 2023-12-24
+  Bullish: 49.90%
+  Caution: 2.39%
+  Distribution: 1.19%
+  Bearish: 2.58%
+  Recuperation: 14.51%
+  Accumulation: 29.42%
+
+Date: 2023-12-31
+  Bullish: 52.68%
+  Caution: 3.58%
+  Distribution: 0.99%
+  Bearish: 1.19%
+  Recuperation: 14.51%
+  Accumulation: 27.04%
+
+Date: 2024-01-07
+  Bullish: 57.06%
+  Caution: 4.37%
+  Distribution: 1.19%
+  Bearish: 0.99%
+  Recuperation: 17.50%
+  Accumulation: 18.89%
+
+Date: 2024-01-14
+  Bullish: 60.83%
+  Caution: 7.95%
+  Distribution: 1.39%
+  Bearish: 6.96%
+  Recuperation: 12.92%
+  Accumulation: 9.94%
+
+Date: 2024-01-21
+  Bullish: 61.43%
+  Caution: 5.37%
+  Distribution: 7.36%
+  Bearish: 8.75%
+  Recuperation: 10.34%
+  Accumulation: 6.76%
+
+Date: 2024-01-28
+  Bullish: 64.02%
+  Caution: 8.95%
+  Distribution: 6.36%
+  Bearish: 6.16%
+  Recuperation: 10.74%
+  Accumulation: 3.78%
+
+Date: 2024-02-04
+  Bullish: 55.86%
+  Caution: 13.92%
+  Distribution: 10.14%
+  Bearish: 9.54%
+  Recuperation: 7.36%
+  Accumulation: 3.18%
+
+Date: 2024-02-11
+  Bullish: 60.64%
+  Caution: 10.34%
+  Distribution: 10.34%
+  Bearish: 10.14%
+  Recuperation: 5.17%
+  Accumulation: 3.38%
+
+Date: 2024-02-18
+  Bullish: 60.04%
+  Caution: 11.73%
+  Distribution: 9.74%
+  Bearish: 10.34%
+  Recuperation: 5.37%
+  Accumulation: 2.78%
+
+Date: 2024-02-25
+  Bullish: 64.61%
+  Caution: 9.74%
+  Distribution: 7.16%
+  Bearish: 9.34%
+  Recuperation: 4.37%
+  Accumulation: 4.77%
+
+Date: 2024-03-03
+  Bullish: 66.20%
+  Caution: 10.74%
+  Distribution: 5.57%
+  Bearish: 7.36%
+  Recuperation: 6.36%
+  Accumulation: 3.78%
+
+Date: 2024-03-10
+  Bullish: 71.77%
+  Caution: 5.77%
+  Distribution: 3.78%
+  Bearish: 6.56%
+  Recuperation: 4.97%
+  Accumulation: 7.16%
+
+Date: 2024-03-17
+  Bullish: 61.23%
+  Caution: 16.50%
+  Distribution: 2.98%
+  Bearish: 7.75%
+  Recuperation: 5.57%
+  Accumulation: 5.96%
+
+Date: 2024-03-24
+  Bullish: 67.59%
+  Caution: 10.14%
+  Distribution: 1.79%
+  Bearish: 7.95%
+  Recuperation: 6.36%
+  Accumulation: 6.16%
+
+Date: 2024-03-31
+  Bullish: 71.97%
+  Caution: 7.75%
+  Distribution: 1.59%
+  Bearish: 3.78%
+  Recuperation: 7.16%
+  Accumulation: 7.75%
+
+Date: 2024-04-07
+  Bullish: 62.82%
+  Caution: 15.90%
+  Distribution: 3.78%
+  Bearish: 6.56%
+  Recuperation: 7.36%
+  Accumulation: 3.58%
+
+Date: 2024-04-14
+  Bullish: 34.19%
+  Caution: 38.57%
+  Distribution: 12.13%
+  Bearish: 9.74%
+  Recuperation: 5.17%
+  Accumulation: 0.20%
+
+Date: 2024-04-21
+  Bullish: 29.62%
+  Caution: 40.16%
+  Distribution: 15.51%
+  Bearish: 9.34%
+  Recuperation: 1.59%
+  Accumulation: 3.78%
+
+Date: 2024-04-28
+  Bullish: 38.97%
+  Caution: 33.60%
+  Distribution: 12.92%
+  Bearish: 10.14%
+  Recuperation: 1.59%
+  Accumulation: 2.78%
+
+Date: 2024-05-05
+  Bullish: 35.19%
+  Caution: 34.19%
+  Distribution: 16.50%
+  Bearish: 8.55%
+  Recuperation: 2.78%
+  Accumulation: 2.78%
+
+Date: 2024-05-12
+  Bullish: 46.12%
+  Caution: 28.23%
+  Distribution: 10.74%
+  Bearish: 9.34%
+  Recuperation: 0.99%
+  Accumulation: 4.57%
+
+Date: 2024-05-19
+  Bullish: 55.07%
+  Caution: 21.87%
+  Distribution: 5.96%
+  Bearish: 10.34%
+  Recuperation: 3.58%
+  Accumulation: 3.18%
+
+Date: 2024-05-26
+  Bullish: 43.14%
+  Caution: 29.42%
+  Distribution: 8.75%
+  Bearish: 13.92%
+  Recuperation: 3.38%
+  Accumulation: 1.39%
+
+Date: 2024-06-02
+  Bullish: 45.33%
+  Caution: 23.26%
+  Distribution: 12.33%
+  Bearish: 13.92%
+  Recuperation: 4.17%
+  Accumulation: 0.99%
+
+Date: 2024-06-09
+  Bullish: 42.54%
+  Caution: 25.84%
+  Distribution: 10.74%
+  Bearish: 15.71%
+  Recuperation: 3.38%
+  Accumulation: 1.79%
+
+Date: 2024-06-16
+  Bullish: 39.76%
+  Caution: 26.04%
+  Distribution: 11.33%
+  Bearish: 16.10%
+  Recuperation: 3.78%
+  Accumulation: 2.98%
+
+Date: 2024-06-23
+  Bullish: 45.53%
+  Caution: 22.47%
+  Distribution: 8.75%
+  Bearish: 13.72%
+  Recuperation: 6.36%
+  Accumulation: 3.18%
+
+Date: 2024-06-30
+  Bullish: 39.96%
+  Caution: 28.83%
+  Distribution: 7.36%
+  Bearish: 14.71%
+  Recuperation: 5.37%
+  Accumulation: 3.78%
+
+Date: 2024-07-07
+  Bullish: 35.79%
+  Caution: 30.62%
+  Distribution: 6.16%
+  Bearish: 17.10%
+  Recuperation: 7.95%
+  Accumulation: 2.39%
+
+Date: 2024-07-14
+  Bullish: 54.08%
+  Caution: 14.31%
+  Distribution: 2.19%
+  Bearish: 12.52%
+  Recuperation: 7.95%
+  Accumulation: 8.95%
+
+Date: 2024-07-21
+  Bullish: 53.08%
+  Caution: 17.30%
+  Distribution: 2.78%
+  Bearish: 10.93%
+  Recuperation: 8.95%
+  Accumulation: 6.96%
+
+Date: 2024-07-28
+  Bullish: 50.50%
+  Caution: 18.29%
+  Distribution: 4.17%
+  Bearish: 9.54%
+  Recuperation: 5.96%
+  Accumulation: 11.53%
+
+Date: 2024-08-04
+  Bullish: 38.37%
+  Caution: 19.88%
+  Distribution: 13.52%
+  Bearish: 12.52%
+  Recuperation: 6.76%
+  Accumulation: 8.95%
+
+Date: 2024-08-11
+  Bullish: 41.35%
+  Caution: 13.52%
+  Distribution: 16.50%
+  Bearish: 12.13%
+  Recuperation: 7.75%
+  Accumulation: 8.75%
+
+Date: 2024-08-18
+  Bullish: 46.72%
+  Caution: 13.92%
+  Distribution: 9.15%
+  Bearish: 9.54%
+  Recuperation: 11.13%
+  Accumulation: 9.54%
+
+Date: 2024-08-25
+  Bullish: 56.06%
+  Caution: 9.74%
+  Distribution: 5.17%
+  Bearish: 7.55%
+  Recuperation: 12.52%
+  Accumulation: 8.95%
+
+Date: 2024-09-01
+  Bullish: 61.43%
+  Caution: 5.77%
+  Distribution: 1.59%
+  Bearish: 11.13%
+  Recuperation: 8.15%
+  Accumulation: 11.93%
+
+Date: 2024-09-08
+  Bullish: 45.13%
+  Caution: 15.31%
+  Distribution: 7.95%
+  Bearish: 22.47%
+  Recuperation: 5.77%
+  Accumulation: 3.38%
+
+Date: 2024-09-15
+  Bullish: 49.50%
+  Caution: 12.13%
+  Distribution: 4.57%
+  Bearish: 15.11%
+  Recuperation: 9.74%
+  Accumulation: 8.95%
+
+Date: 2024-09-22
+  Bullish: 54.27%
+  Caution: 11.33%
+  Distribution: 1.39%
+  Bearish: 9.94%
+  Recuperation: 11.53%
+  Accumulation: 11.53%
+
+Date: 2024-09-29
+  Bullish: 54.47%
+  Caution: 9.15%
+  Distribution: 1.59%
+  Bearish: 5.77%
+  Recuperation: 9.94%
+  Accumulation: 19.09%
+
+Date: 2024-10-06
+  Bullish: 49.30%
+  Caution: 15.31%
+  Distribution: 3.18%
+  Bearish: 9.74%
+  Recuperation: 8.15%
+  Accumulation: 14.31%
+
+Date: 2024-10-13
+  Bullish: 52.88%
+  Caution: 11.13%
+  Distribution: 4.37%
+  Bearish: 10.54%
+  Recuperation: 9.15%
+  Accumulation: 11.93%
+
+Date: 2024-10-20
+  Bullish: 57.65%
+  Caution: 8.95%
+  Distribution: 6.16%
+  Bearish: 8.15%
+  Recuperation: 9.94%
+  Accumulation: 9.15%
+
+Date: 2024-10-27
+  Bullish: 39.96%
+  Caution: 21.87%
+  Distribution: 9.94%
+  Bearish: 16.10%
+  Recuperation: 6.36%
+  Accumulation: 5.77%
+
+Date: 2024-11-03
+  Bullish: 36.98%
+  Caution: 24.45%
+  Distribution: 11.93%
+  Bearish: 14.51%
+  Recuperation: 6.16%
+  Accumulation: 5.96%
+
+Date: 2024-11-10
+  Bullish: 51.89%
+  Caution: 14.91%
+  Distribution: 5.96%
+  Bearish: 11.93%
+  Recuperation: 6.76%
+  Accumulation: 8.55%
+
+Date: 2024-11-17
+  Bullish: 49.11%
+  Caution: 14.91%
+  Distribution: 9.74%
+  Bearish: 15.31%
+  Recuperation: 4.57%
+  Accumulation: 6.36%
+
+Date: 2024-11-24
+  Bullish: 56.26%
+  Caution: 12.72%
+  Distribution: 7.16%
+  Bearish: 13.72%
+  Recuperation: 5.96%
+  Accumulation: 4.17%
+
+Date: 2024-12-01
+  Bullish: 64.61%
+  Caution: 6.16%
+  Distribution: 5.17%
+  Bearish: 13.12%
+  Recuperation: 5.57%
+  Accumulation: 5.37%
+
+Date: 2024-12-08
+  Bullish: 57.85%
+  Caution: 11.53%
+  Distribution: 6.36%
+  Bearish: 17.10%
+  Recuperation: 3.98%
+  Accumulation: 3.18%
+
+Date: 2024-12-15
+  Bullish: 48.51%
+  Caution: 18.09%
+  Distribution: 10.14%
+  Bearish: 17.89%
+  Recuperation: 2.39%
+  Accumulation: 2.98%
+
+Date: 2024-12-22
+  Bullish: 31.61%
+  Caution: 28.03%
+  Distribution: 17.89%
+  Bearish: 20.87%
+  Recuperation: 0.80%
+  Accumulation: 0.80%
+
+Date: 2024-12-29
+  Bullish: 33.00%
+  Caution: 26.24%
+  Distribution: 15.11%
+  Bearish: 23.86%
+  Recuperation: 0.99%
+  Accumulation: 0.80%
+
+Date: 2025-01-05
+  Bullish: 23.66%
+  Caution: 34.19%
+  Distribution: 10.74%
+  Bearish: 28.23%
+  Recuperation: 2.58%
+  Accumulation: 0.60%
+
 Date: 2025-01-12
-  Bullish: 15.68%
-  Caution: 39.31%
-  Distribution: 14.46%
-  Bearish: 25.66%
-  Recuperation: 4.07%
-  Accumulation: 0.81%
+  Bullish: 14.12%
+  Caution: 42.35%
+  Distribution: 10.74%
+  Bearish: 29.42%
+  Recuperation: 2.58%
+  Accumulation: 0.80%
 
 Date: 2025-01-19
-  Bullish: 13.85%
-  Caution: 33.60%
-  Distribution: 9.98%
-  Bearish: 20.37%
-  Recuperation: 5.70%
-  Accumulation: 0.61%
+  Bullish: 27.83%
+  Caution: 30.62%
+  Distribution: 7.75%
+  Bearish: 23.66%
+  Recuperation: 5.77%
+  Accumulation: 2.98%
 

@@ -12,6 +12,7 @@ import matplotlib.ticker as mtick
 
 matplotlib.use("Agg")
 
+
 def _get_interval_label(interval_str: str) -> str:
     """
     Helper to convert config's interval string (e.g. 'D', 'W', 'M')
@@ -27,36 +28,28 @@ def _get_interval_label(interval_str: str) -> str:
     else:
         return "period"  # Fallback for other intervals
 
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
-import os
-import pandas as pd
-import config
 
 def save_phase_plots(phases, df_phases):
     """
     Generate and save plots for all phases in df_phases (resampled or daily).
-    Ensures consistent y-axis (0% to 100%), overlays a red 10-(interval) MA,
-    and starts plotting only from the first non-zero date to avoid empty portion.
-
-    Also creates a heatmap correlation plot of the 6 phases at the end.
+    Also makes a heatmap of the 6 phases at the end.
     """
-
     if df_phases.empty:
         logging.warning("No phase data to plot.")
         return
 
-    # Filter by date range
+    df_phases_full = df_phases.copy()  # For moving averages
+
+    # Filter by date range only for the final plotting
     if config.START_DATE:
-        start_date = pd.to_datetime(config.START_DATE)
-        df_phases_full = df_phases.copy()  # Keep the full data for MA calculations
-        df_phases = df_phases[df_phases.index >= start_date]
+        start_dt = pd.to_datetime(config.START_DATE)
+        df_phases = df_phases[df_phases.index >= start_dt]
     if config.END_DATE:
-        end_date = pd.to_datetime(config.END_DATE)
-        df_phases = df_phases[df_phases.index <= end_date]
+        end_dt = pd.to_datetime(config.END_DATE)
+        df_phases = df_phases[df_phases.index <= end_dt]
 
     if df_phases.empty:
-        logging.warning("No phase data within the specified date range to plot.")
+        logging.warning("No phase data within the specified date range.")
         return
 
     if not os.path.exists(config.RESULTS_DIR):
@@ -64,46 +57,35 @@ def save_phase_plots(phases, df_phases):
 
     interval_label = _get_interval_label(config.PHASE_PLOT_INTERVAL)
 
-    # ----------------------------
     # 1) Plot all phases together
-    # ----------------------------
     if config.PLOT_PHASES.get("AllPhases", False):
         plt.figure(figsize=(12, 8))
-
         for phase in phases:
             if phase not in df_phases.columns:
                 continue
-
-            # Drop NaN first
             phase_series = df_phases[phase].dropna()
-
-            # Start only at the first non-zero date
-            non_zero_indices = phase_series[phase_series != 0].index
-            if non_zero_indices.empty:
-                # If the entire series is zeros (or empty after dropna),
-                # skip this phase
+            if phase_series.empty:
                 continue
-            first_non_zero_date = non_zero_indices[0]
 
-            # Include data before the first non-zero date for MA calculation
-            phase_series_full = df_phases_full[phase].dropna()
-            moving_avg = phase_series_full.rolling(window=10, min_periods=1).mean()
+            # Start only at first non-zero date
+            non_zero_idx = phase_series[phase_series != 0].index
+            if non_zero_idx.empty:
+                continue
+            first_non_zero_date = non_zero_idx[0]
 
-            # Trim to start from the first non-zero date for plotting
+            # Rolling MA from the full data
+            full_series = df_phases_full[phase].dropna()
+            moving_avg = full_series.rolling(window=10, min_periods=1).mean()
+
             phase_series = phase_series.loc[first_non_zero_date:]
             moving_avg = moving_avg.loc[first_non_zero_date:]
 
-            # Plot a line only (no markers)
             plt.plot(phase_series.index, phase_series.values, label=phase)
-
-            # Plot the moving average line
-            plt.plot(
-                moving_avg.index,
-                moving_avg.values,
-                label=f"{phase} (10 {interval_label} MA)",
-                color="red",
-                linestyle="--"
-            )
+            plt.plot(moving_avg.index,
+                     moving_avg.values,
+                     label=f"{phase} (10 {interval_label} MA)",
+                     color="red",
+                     linestyle="--")
 
         plt.title("All Phases Over Time")
         plt.xlabel("Date")
@@ -112,33 +94,32 @@ def save_phase_plots(phases, df_phases):
         plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
         plt.legend()
         plt.grid(True)
+
         filename = os.path.join(config.RESULTS_DIR, "all_phases.png")
         plt.savefig(filename, dpi=300)
         plt.close()
 
-    # ----------------------------
     # 2) Plot each phase separately
-    # ----------------------------
     for phase in phases:
         if not config.PLOT_PHASES.get(phase, False):
             continue
         if phase not in df_phases.columns:
-            logging.warning(f"Phase '{phase}' not found in DataFrame columns. Skipping.")
+            logging.warning(f"Phase '{phase}' not found in columns. Skipping.")
             continue
 
         phase_series = df_phases[phase].dropna()
-
-        # Start only at the first non-zero date
-        non_zero_indices = phase_series[phase_series != 0].index
-        if non_zero_indices.empty:
+        if phase_series.empty:
             continue
-        first_non_zero_date = non_zero_indices[0]
 
-        # Include data before the first non-zero date for MA calculation
-        phase_series_full = df_phases_full[phase].dropna()
-        moving_avg = phase_series_full.rolling(window=10, min_periods=1).mean()
+        non_zero_idx = phase_series[phase_series != 0].index
+        if non_zero_idx.empty:
+            continue
+        first_non_zero_date = non_zero_idx[0]
 
-        # Trim to start from the first non-zero date for plotting
+        # Full series for MA
+        full_series = df_phases_full[phase].dropna()
+        moving_avg = full_series.rolling(window=10, min_periods=1).mean()
+
         phase_series = phase_series.loc[first_non_zero_date:]
         moving_avg = moving_avg.loc[first_non_zero_date:]
 
@@ -146,11 +127,7 @@ def save_phase_plots(phases, df_phases):
             continue
 
         plt.figure(figsize=(10, 6))
-
-        # Plot a line only (no markers)
         plt.plot(phase_series.index, phase_series.values, label=phase)
-
-        # Plot the moving average line
         plt.plot(
             moving_avg.index,
             moving_avg.values,
@@ -158,33 +135,25 @@ def save_phase_plots(phases, df_phases):
             color="red",
             linestyle="--"
         )
-
         plt.title(f"{phase} Phase % Over Time")
-        plt.xlabel("")
-        plt.ylabel("")
+        plt.xlabel("Date")
+        plt.ylabel("% Tickers in Phase")
         plt.ylim(0, 100)
         plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
         plt.legend()
         plt.grid(True)
+
         filename = os.path.join(config.RESULTS_DIR, f"phase_{phase.lower()}.png")
         plt.savefig(filename, dpi=300)
         plt.close()
 
-    # ----------------------------
-    # 3) Correlation Heatmap
-    # ----------------------------
+    # 3) Correlation Heatmap among phases
     _save_phase_correlation_heatmap(df_phases)
 
+
 def _save_phase_correlation_heatmap(df_phases):
-    """
-    Create and save a correlation heatmap for the six phases:
-    Bullish, Caution, Distribution, Bearish, Recuperation, Accumulation.
-    """
-
     phases_of_interest = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
-    existing_cols = [col for col in phases_of_interest if col in df_phases.columns]
-
-    # If none of these columns exist, skip
+    existing_cols = [c for c in phases_of_interest if c in df_phases.columns]
     if not existing_cols:
         logging.warning("No phase columns found for correlation heatmap.")
         return
@@ -204,7 +173,7 @@ def _save_phase_correlation_heatmap(df_phases):
 def save_indicator_plots(indicator_name, df):
     """
     Generate and save plots for an indicator DataFrame with one or more columns.
-    Each column is plotted separately (lines only, no markers).
+    Each column is plotted separately. 
     """
     if not config.PLOT_INDICATORS.get(indicator_name, False):
         return
@@ -212,7 +181,6 @@ def save_indicator_plots(indicator_name, df):
         logging.warning(f"No data to plot for indicator '{indicator_name}'.")
         return
 
-    # Filter for START_DATE and END_DATE
     if config.START_DATE:
         start_date = pd.to_datetime(config.START_DATE)
         df = df[df.index >= start_date]
@@ -221,7 +189,7 @@ def save_indicator_plots(indicator_name, df):
         df = df[df.index <= end_date]
 
     if df.empty:
-        logging.warning(f"No data within the specified date range for indicator '{indicator_name}'.")
+        logging.warning(f"No data in range for '{indicator_name}'.")
         return
 
     if not os.path.exists(config.RESULTS_DIR):
@@ -235,18 +203,116 @@ def save_indicator_plots(indicator_name, df):
             continue
 
         plt.figure(figsize=(10, 6))
-
-        # Plot line only
         plt.plot(col_data.index, col_data.values, label=col)
-
-        # If you know this column is a % measure, you can do:
-        # plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
-
         plt.title(f"{indicator_name} - {col} ({interval_label.upper()} data)")
         plt.xlabel("Date")
         plt.ylabel(col)
         plt.legend()
         plt.grid(True)
-        filename = os.path.join(config.RESULTS_DIR, f"{indicator_name}_{col}.png")
-        plt.savefig(filename, dpi=300)
+
+        fname = os.path.join(config.RESULTS_DIR, f"{indicator_name}_{col}.png")
+        plt.savefig(fname, dpi=300)
         plt.close()
+
+
+def plot_cumulative_returns(cum_df: pd.DataFrame, output_dir=config.RESULTS_DIR):
+    """
+    Plot cumulative returns for all columns (all ETFs).
+    We do NOT limit to 1 year for the line plots.
+    Saves to sector_plots/.
+    """
+    if cum_df.empty:
+        logging.warning("No data to plot in plot_cumulative_returns.")
+        return
+
+    plt.figure(figsize=(12, 8))
+    for col in cum_df.columns:
+        plt.plot(cum_df.index, cum_df[col], label=col)
+
+    plt.title("Cumulative Returns")
+    plt.legend()
+    plt.grid(True)
+    plt.xlabel("Date")
+    plt.ylabel("Cumulative Return")
+
+    spath = os.path.join(output_dir, "sector_plots")
+    os.makedirs(spath, exist_ok=True)
+    fpath = os.path.join(spath, "cumulative_returns.png")
+    plt.savefig(fpath, dpi=300)
+    plt.close()
+
+
+def plot_rolling_correlation(roll_corr_df: pd.DataFrame, output_dir=config.RESULTS_DIR):
+    """
+    Plot rolling correlation vs. SPY for each ticker. 
+    We do NOT limit to 1 year for line plots.
+    Saves to sector_plots/.
+    """
+    if roll_corr_df.empty:
+        logging.warning("No data to plot in plot_rolling_correlation.")
+        return
+
+    plt.figure(figsize=(12, 8))
+    for col in roll_corr_df.columns:
+        plt.plot(roll_corr_df.index, roll_corr_df[col], label=col)
+
+    plt.title(f"Rolling {config.ROLLING_WINDOW}-Day Correlation vs. {config.SP500_TICKER}")
+    plt.legend()
+    plt.grid(True)
+    plt.xlabel("Date")
+    plt.ylabel("Correlation")
+
+    spath = os.path.join(output_dir, "sector_plots")
+    os.makedirs(spath, exist_ok=True)
+    fpath = os.path.join(spath, "rolling_correlation.png")
+    plt.savefig(fpath, dpi=300)
+    plt.close()
+
+
+def plot_relative_performance(rel_df: pd.DataFrame, output_dir=config.RESULTS_DIR):
+    """
+    Plot ratio of each ETF's price to SPY's price. 
+    We do NOT limit to 1 year for line plots.
+    Saves to sector_plots/.
+    """
+    if rel_df.empty:
+        logging.warning("No data to plot in plot_relative_performance.")
+        return
+
+    plt.figure(figsize=(12, 8))
+    for col in rel_df.columns:
+        plt.plot(rel_df.index, rel_df[col], label=col)
+
+    plt.title(f"Relative Performance vs. {config.SP500_TICKER}")
+    plt.legend()
+    plt.grid(True)
+    plt.xlabel("Date")
+    plt.ylabel("Price / SPY")
+
+    spath = os.path.join(output_dir, "sector_plots")
+    os.makedirs(spath, exist_ok=True)
+    fpath = os.path.join(spath, "relative_performance.png")
+    plt.savefig(fpath, dpi=300)
+    plt.close()
+
+
+def plot_correlation_heatmap(df: pd.DataFrame, output_dir=config.RESULTS_DIR, title="Correlation Heatmap"):
+    """
+    Create a correlation heatmap for columns in df, typically 1-year daily returns.
+    Saves to sector_plots/.
+    """
+    if df.empty:
+        logging.warning("No data for correlation heatmap.")
+        return
+
+    corr = df.corr()
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f")
+    plt.title(title)
+    plt.tight_layout()
+
+    spath = os.path.join(output_dir, "sector_plots")
+    os.makedirs(spath, exist_ok=True)
+    fpath = os.path.join(spath, "correlation_heatmap.png")
+    plt.savefig(fpath, dpi=300)
+    plt.close()

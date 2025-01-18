@@ -1,5 +1,3 @@
-# db_helpers.py
-
 import logging
 import psycopg2.extras
 import pandas as pd
@@ -10,7 +8,6 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 
 import config
 from db_manager import db_pool
-from perf_utils import log_memory_usage
 import psycopg2
 
 # Initialize SQLAlchemy engine once in this module
@@ -20,12 +17,11 @@ engine = create_engine(DATABASE_URL)
 
 def create_tables(conn):
     """
-    Create the price_data, indicator_data, phase_details, and new tables 
-    for volume MAs and price/volume MA deviations.
+    Create or recreate the necessary tables (including sector_analysis).
     """
     cur = conn.cursor()
-    
-    # 1) Existing tables...
+
+    # price_data (old) ...
     create_price_table = """
     CREATE TABLE IF NOT EXISTS price_data (
         ticker VARCHAR(20),
@@ -35,12 +31,14 @@ def create_tables(conn):
         low NUMERIC,
         close NUMERIC,
         volume BIGINT,
+        sector VARCHAR(50),
         PRIMARY KEY(ticker, trade_date)
     );
     """
     cur.execute(create_price_table)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_price_trade_date ON price_data (trade_date);")
-    
+
+    # indicator_data ...
     create_indicator_table = """
     CREATE TABLE IF NOT EXISTS indicator_data (
         indicator_name VARCHAR(50),
@@ -55,7 +53,8 @@ def create_tables(conn):
     """
     cur.execute(create_indicator_table)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_indicator_data_date ON indicator_data (data_date);")
-    
+
+    # phase_details ...
     create_phase_details = """
     CREATE TABLE IF NOT EXISTS phase_details (
         ticker VARCHAR(20),
@@ -69,8 +68,8 @@ def create_tables(conn):
     """
     cur.execute(create_phase_details)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_phase_details_date ON phase_details (data_date);")
-    
-    # 2) volume_ma_data
+
+    # volume_ma_data ...
     create_volume_ma_data = """
     CREATE TABLE IF NOT EXISTS volume_ma_data (
         ticker VARCHAR(20),
@@ -81,8 +80,8 @@ def create_tables(conn):
     );
     """
     cur.execute(create_volume_ma_data)
-    
-    # 3) price_ma_deviation
+
+    # price_ma_deviation ...
     create_price_ma_deviation = """
     CREATE TABLE IF NOT EXISTS price_ma_deviation (
         ticker VARCHAR(20),
@@ -93,8 +92,8 @@ def create_tables(conn):
     );
     """
     cur.execute(create_price_ma_deviation)
-    
-    # 4) volume_ma_deviation
+
+    # volume_ma_deviation ...
     create_volume_ma_deviation = """
     CREATE TABLE IF NOT EXISTS volume_ma_deviation (
         ticker VARCHAR(20),
@@ -105,10 +104,62 @@ def create_tables(conn):
     );
     """
     cur.execute(create_volume_ma_deviation)
-    
+
+    # sector_data (for storing sector ETFs including SPY)...
+    create_sector_data_table(conn)
+
+    # --- NEW or UPDATED: drop old sector_analysis if messy, create fresh
+    drop_sector_analysis = "DROP TABLE IF EXISTS sector_analysis;"
+    cur.execute(drop_sector_analysis)
+    create_sector_analysis_table(conn)
+
     conn.commit()
     cur.close()
 
+def create_sector_data_table(conn):
+    """
+    Create the new table that stores sector ETF data, including SPY.
+    """
+    cur = conn.cursor()
+    create_table_sql = """
+    CREATE TABLE IF NOT EXISTS sector_data (
+        ticker VARCHAR(20),
+        trade_date DATE,
+        open NUMERIC,
+        high NUMERIC,
+        low NUMERIC,
+        close NUMERIC,
+        volume BIGINT,
+        sma_50 NUMERIC,
+        sma_200 NUMERIC,
+        PRIMARY KEY (ticker, trade_date)
+    );
+    """
+    cur.execute(create_table_sql)
+    conn.commit()
+    cur.close()
+
+def create_sector_analysis_table(conn):
+    """
+    Fresh schema for 'sector_analysis':
+      - We store daily return, cumulative return, rolling correlation vs SPY, relative perf vs SPY, per date & ticker.
+    """
+    cur = conn.cursor()
+
+    create_table_sql = """
+    CREATE TABLE IF NOT EXISTS sector_analysis (
+        data_date DATE NOT NULL,
+        ticker VARCHAR(20) NOT NULL,
+        daily_return NUMERIC,
+        cumulative_return NUMERIC,
+        rolling_corr_spy NUMERIC,
+        relative_perf_spy NUMERIC,
+        PRIMARY KEY (data_date, ticker)
+    );
+    """
+    cur.execute(create_table_sql)
+    conn.commit()
+    cur.close()
 
 def write_phase_details_to_db(df: pd.DataFrame, conn):
     """
@@ -162,7 +213,6 @@ def write_indicator_data_to_db(new_df: pd.DataFrame, indicator_name: str, conn):
     for dt_, row in new_df.iterrows():
         dt_ = dt_.date()
         values = row.values.tolist()
-        # Up to 5 columns stored as value1..value5
         float_values = []
         for val in values:
             if pd.isna(val):
@@ -189,15 +239,39 @@ def write_indicator_data_to_db(new_df: pd.DataFrame, indicator_name: str, conn):
     conn.commit()
     cur.close()
 
+def write_sector_analysis_metrics(conn, metric_records):
+    """
+    Insert or update rows in 'sector_analysis' table.
+    'metric_records' is a list of tuples:
+      (data_date, ticker, daily_return, cumulative_return, rolling_corr_spy, relative_perf_spy)
+    """
+    if not metric_records:
+        return
+
+    cur = conn.cursor()
+    insert_query = """
+        INSERT INTO sector_analysis (
+            data_date, ticker, daily_return, cumulative_return,
+            rolling_corr_spy, relative_perf_spy
+        )
+        VALUES %s
+        ON CONFLICT (data_date, ticker) DO UPDATE
+          SET daily_return = EXCLUDED.daily_return,
+              cumulative_return = EXCLUDED.cumulative_return,
+              rolling_corr_spy = EXCLUDED.rolling_corr_spy,
+              relative_perf_spy = EXCLUDED.relative_perf_spy
+    """
+    psycopg2.extras.execute_values(cur, insert_query, metric_records, page_size=1000)
+    conn.commit()
+    cur.close()
 
 def read_ticker_data_from_db(ticker: str, conn) -> pd.DataFrame:
     """
-    Reads all available data for `ticker` from the price_data table in the DB.
-    Returns a DataFrame with columns: Open, High, Low, Close, Volume
-    indexed by the trade_date.
+    Reads all available data for `ticker` from price_data,
+    including 'sector'.
     """
     query = """
-        SELECT trade_date, open, high, low, close, volume
+        SELECT trade_date, open, high, low, close, volume, sector
         FROM price_data
         WHERE ticker = %s
         ORDER BY trade_date
@@ -206,25 +280,30 @@ def read_ticker_data_from_db(ticker: str, conn) -> pd.DataFrame:
     if not df.empty:
         df.set_index("trade_date", inplace=True)
         df.index = pd.to_datetime(df.index)
-        df.columns = ["Open", "High", "Low", "Close", "Volume"]
+        df.columns = ["Open", "High", "Low", "Close", "Volume", "sector"]
+        # Convert numeric columns as needed
         for col in ["Open", "High", "Low", "Close"]:
-            df[col] = df[col].astype("float32", errors="ignore")
+            df[col] = df[col].astype(float)
         df["Volume"] = df["Volume"].astype("int64", errors="ignore")
     return df
 
 
 def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
     """
-    Fetch data for the given tickers, starting from an extended earliest date
-    to allow for proper MA calculations. Trims based on START_DATE.
+    Fetch data for the given tickers from price_data (old table),
+    including the 'sector' column if available.
+    Trims data by START_DATE with a lookback for MAs, etc.
     """
     data_dict = {}
     batch_size = 50
     max_workers = min(config.MAX_WORKERS, len(tickers)) if tickers else 1
     
     lookback_days = max(config.MA_SHORT, config.MA_LONG)
-    start_date = pd.to_datetime(config.START_DATE)
-    earliest_date = start_date - timedelta(days=lookback_days)
+    start_date = pd.to_datetime(config.START_DATE) if config.START_DATE else None
+    if start_date is not None:
+        earliest_date = start_date - timedelta(days=lookback_days)
+    else:
+        earliest_date = None
     
     for i in range(0, len(tickers), batch_size):
         batch = tickers[i : i + batch_size]
@@ -238,11 +317,11 @@ def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
                 try:
                     df = future.result()
                     if not df.empty:
-                        df = df[df.index >= earliest_date]
+                        if earliest_date is not None:
+                            df = df[df.index >= earliest_date]
                         if config.END_DATE:
                             end_date = pd.to_datetime(config.END_DATE)
                             df = df[df.index <= end_date]
-                        
                         if not df.empty:
                             data_dict[ticker] = df
                         else:
@@ -254,12 +333,75 @@ def batch_fetch_from_db(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
     return data_dict
 
 
+# --- NEW or UPDATED ---
+# --- BATCH FETCH for sector_data
+def read_etf_data_from_db(ticker: str, conn) -> pd.DataFrame:
+    # same as before but from sector_data
+    query = """
+        SELECT trade_date, open, high, low, close, volume, sma_50, sma_200
+        FROM sector_data
+        WHERE ticker = %s
+        ORDER BY trade_date
+    """
+    df = pd.read_sql(query, engine, params=(ticker,))
+    if not df.empty:
+        df.set_index("trade_date", inplace=True)
+        df.index = pd.to_datetime(df.index)
+        df.columns = ["Open", "High", "Low", "Close", "Volume", "SMA_50", "SMA_200"]
+        for col in ["Open", "High", "Low", "Close", "SMA_50", "SMA_200"]:
+            df[col] = df[col].astype(float)
+        df["Volume"] = df["Volume"].astype("int64", errors="ignore")
+    return df
+
+def batch_fetch_sector_data(tickers: List[str], conn) -> Dict[str, pd.DataFrame]:
+    """
+    Fetch data for the given tickers from the new 'sector_data' table.
+    Trims data by START_DATE with a lookback for MAs, etc.
+    """
+    data_dict = {}
+    batch_size = 50
+    max_workers = min(config.MAX_WORKERS, len(tickers)) if tickers else 1
+    
+    lookback_days = max(config.MA_SHORT, config.MA_LONG)
+    start_date = pd.to_datetime(config.START_DATE) if config.START_DATE else None
+    if start_date is not None:
+        earliest_date = start_date - timedelta(days=lookback_days)
+    else:
+        earliest_date = None
+
+    for i in range(0, len(tickers), batch_size):
+        batch = tickers[i : i + batch_size]
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_ticker = {
+                executor.submit(read_etf_data_from_db, ticker, conn): ticker
+                for ticker in batch
+            }
+            for future in as_completed(future_to_ticker):
+                ticker = future_to_ticker[future]
+                try:
+                    df = future.result()
+                    if not df.empty:
+                        if earliest_date is not None:
+                            df = df[df.index >= earliest_date]
+                        if config.END_DATE:
+                            end_date = pd.to_datetime(config.END_DATE)
+                            df = df[df.index <= end_date]
+                        if not df.empty:
+                            data_dict[ticker] = df
+                        else:
+                            logging.info(f"No data within range for {ticker} in sector_data.")
+                    else:
+                        logging.info(f"No data found in sector_data for {ticker}.")
+                except Exception as e:
+                    logging.error(f"Error loading sector_data for {ticker}: {e}")
+    return data_dict
+
+
 def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_sma_changes_file="price_sma_changes.txt"):
     """
     1) Detect any ticker that changes its phase (old -> new).
     2) Detect price crossing above/below SMA_50 or SMA_200.
     3) Detect golden/death crosses (SMA_50 crossing SMA_200).
-
     Results are written to separate files.
     """
     import pandas as pd
@@ -278,7 +420,6 @@ def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_s
     
     df = pd.read_sql(query, conn)
     if df.empty:
-        # No data at all? Then no changes can be detected
         with open(phase_changes_file, "w") as f:
             f.write("No data found in phase_details, no phase changes detected.\n")
         with open(price_sma_changes_file, "w") as f:
@@ -314,27 +455,21 @@ def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_s
         sma200_prev = row["prev_sma_200"]
         
         if pd.notna(c_now) and pd.notna(c_prev) and pd.notna(sma50_now) and pd.notna(sma50_prev):
-            # Cross above 50
             if (c_prev < sma50_prev) and (c_now > sma50_now):
                 price_sma_crosses.append(f"[{date_}] {ticker} price crossed ABOVE 50-day SMA")
-            # Cross below 50
             if (c_prev > sma50_prev) and (c_now < sma50_now):
                 price_sma_crosses.append(f"[{date_}] {ticker} price crossed BELOW 50-day SMA")
         
         if pd.notna(c_now) and pd.notna(c_prev) and pd.notna(sma200_now) and pd.notna(sma200_prev):
-            # Cross above 200
             if (c_prev < sma200_prev) and (c_now > sma200_now):
                 price_sma_crosses.append(f"[{date_}] {ticker} price crossed ABOVE 200-day SMA")
-            # Cross below 200
             if (c_prev > sma200_prev) and (c_now < sma200_now):
                 price_sma_crosses.append(f"[{date_}] {ticker} price crossed BELOW 200-day SMA")
         
         # 3) Golden / Death Cross
         if pd.notna(sma50_now) and pd.notna(sma50_prev) and pd.notna(sma200_now) and pd.notna(sma200_prev):
-            # Golden cross
             if (sma50_prev < sma200_prev) and (sma50_now > sma200_now):
                 golden_death_crosses.append(f"[{date_}] {ticker} GOLDEN CROSS (50-day SMA above 200-day SMA)")
-            # Death cross
             if (sma50_prev > sma200_prev) and (sma50_now < sma200_now):
                 golden_death_crosses.append(f"[{date_}] {ticker} DEATH CROSS (50-day SMA below 200-day SMA)")
     

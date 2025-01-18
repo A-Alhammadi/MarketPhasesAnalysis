@@ -1,0 +1,22 @@
+Extreme Volume Stocks for 2025-01-17 (Z-Threshold: 2.0):
+
+APD: Dev_20_Z = 2.12, Dev_63_Z = 1.66
+AME: Dev_20_Z = 3.16, Dev_63_Z = 2.72
+ADI: Dev_20_Z = 3.16, Dev_63_Z = 2.72
+APH: Dev_20_Z = 3.16, Dev_63_Z = 2.72
+AMGN: Dev_20_Z = 3.16, Dev_63_Z = 2.72
+ANSS: Dev_20_Z = 3.16, Dev_63_Z = 2.72
+ADM: Dev_20_Z = 2.75, Dev_63_Z = 2.73
+ACGL: Dev_20_Z = 2.75, Dev_63_Z = 2.73
+ANET: Dev_20_Z = 2.75, Dev_63_Z = 2.73
+AJG: Dev_20_Z = 2.75, Dev_63_Z = 2.73
+APTV: Dev_20_Z = 2.75, Dev_63_Z = 2.73
+IEX: Dev_20_Z = 1.53, Dev_63_Z = 2.23
+IDXX: Dev_20_Z = 1.53, Dev_63_Z = 2.23
+INTU: Dev_20_Z = 3.25, Dev_63_Z = 2.75
+J: Dev_20_Z = 5.67, Dev_63_Z = 5.94
+JBHT: Dev_20_Z = 5.67, Dev_63_Z = 5.94
+JBL: Dev_20_Z = 5.67, Dev_63_Z = 5.94
+JKHY: Dev_20_Z = 5.67, Dev_63_Z = 5.94
+TER: Dev_20_Z = 3.04, Dev_63_Z = 3.34
+TFX: Dev_20_Z = 3.04, Dev_63_Z = 3.34
