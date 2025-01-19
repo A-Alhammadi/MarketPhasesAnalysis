@@ -1,12 +1,12 @@
 Extreme Volume Stocks for 2025-01-17 (Z-Threshold: 2.0):
 
 A: Dev_20_Z = 2.26, Dev_63_Z = 1.53
-AME: Dev_20_Z = 3.48, Dev_63_Z = 2.66
 AMP: Dev_20_Z = 2.01, Dev_63_Z = 1.97
+AME: Dev_20_Z = 3.48, Dev_63_Z = 2.66
 ACGL: Dev_20_Z = 3.00, Dev_63_Z = 2.67
 BRO: Dev_20_Z = 4.51, Dev_63_Z = 4.29
-EA: Dev_20_Z = 2.10, Dev_63_Z = 1.98
 ECL: Dev_20_Z = 2.18, Dev_63_Z = 2.15
+EA: Dev_20_Z = 2.10, Dev_63_Z = 1.98
 FICO: Dev_20_Z = 2.60, Dev_63_Z = 2.50
 FAST: Dev_20_Z = 3.16, Dev_63_Z = 3.79
 FITB: Dev_20_Z = 1.70, Dev_63_Z = 2.02
@@ -21,10 +21,10 @@ NVR: Dev_20_Z = 2.22, Dev_63_Z = 3.10
 PKG: Dev_20_Z = 1.85, Dev_63_Z = 2.91
 PYPL: Dev_20_Z = 2.06, Dev_63_Z = 1.46
 PNC: Dev_20_Z = 2.18, Dev_63_Z = 2.51
-SLB: Dev_20_Z = 2.75, Dev_63_Z = 3.01
 STX: Dev_20_Z = 2.08, Dev_63_Z = 2.27
 SNA: Dev_20_Z = 3.51, Dev_63_Z = 3.54
-TEL: Dev_20_Z = 3.34, Dev_63_Z = 3.32
+SLB: Dev_20_Z = 2.75, Dev_63_Z = 3.01
 TFC: Dev_20_Z = 2.57, Dev_63_Z = 1.92
-WRB: Dev_20_Z = 6.63, Dev_63_Z = 6.87
 GWW: Dev_20_Z = 3.05, Dev_63_Z = 3.84
+TEL: Dev_20_Z = 3.34, Dev_63_Z = 3.32
+WRB: Dev_20_Z = 6.63, Dev_63_Z = 6.87

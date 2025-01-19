@@ -15,28 +15,13 @@ DATABASE_URL = f"postgresql://{config.DB_USER}:{config.DB_PASS}@{config.DB_HOST}
 engine = create_engine(DATABASE_URL)
 
 
+
 def create_tables(conn):
     """
-    Create or recreate the necessary tables (including sector_analysis).
+    Create only the tables needed for analysis, 
+    excluding price_data and sector_data (which the other program handles).
     """
     cur = conn.cursor()
-
-    # price_data (old) ...
-    create_price_table = """
-    CREATE TABLE IF NOT EXISTS price_data (
-        ticker VARCHAR(20),
-        trade_date DATE,
-        open NUMERIC,
-        high NUMERIC,
-        low NUMERIC,
-        close NUMERIC,
-        volume BIGINT,
-        sector VARCHAR(50),
-        PRIMARY KEY(ticker, trade_date)
-    );
-    """
-    cur.execute(create_price_table)
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_price_trade_date ON price_data (trade_date);")
 
     # indicator_data ...
     create_indicator_table = """
@@ -105,47 +90,19 @@ def create_tables(conn):
     """
     cur.execute(create_volume_ma_deviation)
 
-    # sector_data (for storing sector ETFs including SPY)...
-    create_sector_data_table(conn)
-
-    # --- NEW or UPDATED: drop old sector_analysis if messy, create fresh
-    drop_sector_analysis = "DROP TABLE IF EXISTS sector_analysis;"
-    cur.execute(drop_sector_analysis)
+    # sector_analysis (needed for your sector analysis results)
     create_sector_analysis_table(conn)
 
     conn.commit()
     cur.close()
 
-def create_sector_data_table(conn):
-    """
-    Create the new table that stores sector ETF data, including SPY.
-    """
-    cur = conn.cursor()
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS sector_data (
-        ticker VARCHAR(20),
-        trade_date DATE,
-        open NUMERIC,
-        high NUMERIC,
-        low NUMERIC,
-        close NUMERIC,
-        volume BIGINT,
-        sma_50 NUMERIC,
-        sma_200 NUMERIC,
-        PRIMARY KEY (ticker, trade_date)
-    );
-    """
-    cur.execute(create_table_sql)
-    conn.commit()
-    cur.close()
 
 def create_sector_analysis_table(conn):
     """
-    Fresh schema for 'sector_analysis':
-      - We store daily return, cumulative return, rolling correlation vs SPY, relative perf vs SPY, per date & ticker.
+    Create sector_analysis if it doesn't exist. 
+    This table is filled by run_sector_analysis.
     """
     cur = conn.cursor()
-
     create_table_sql = """
     CREATE TABLE IF NOT EXISTS sector_analysis (
         data_date DATE NOT NULL,
