@@ -1,0 +1,49 @@
+=== PRICE/SMA CHANGES ===
+
+>> Price / SMA Crosses:
+[2025-01-17] ABNB price crossed ABOVE 50-day SMA
+[2025-01-17] ADI price crossed ABOVE 50-day SMA
+[2025-01-17] ADI price crossed ABOVE 200-day SMA
+[2025-01-17] AFL price crossed ABOVE 50-day SMA
+[2025-01-17] ALGN price crossed ABOVE 50-day SMA
+[2025-01-17] AMP price crossed ABOVE 50-day SMA
+[2025-01-17] AOS price crossed ABOVE 50-day SMA
+[2025-01-17] AZO price crossed ABOVE 50-day SMA
+[2025-01-17] CAT price crossed ABOVE 50-day SMA
+[2025-01-17] CB price crossed BELOW 200-day SMA
+[2025-01-17] CDNS price crossed ABOVE 50-day SMA
+[2025-01-17] CE price crossed ABOVE 50-day SMA
+[2025-01-17] CVS price crossed ABOVE 50-day SMA
+[2025-01-17] FSLR price crossed ABOVE 50-day SMA
+[2025-01-17] HBAN price crossed ABOVE 50-day SMA
+[2025-01-17] HSIC price crossed ABOVE 50-day SMA
+[2025-01-17] IDXX price crossed BELOW 50-day SMA
+[2025-01-17] JBHT price crossed BELOW 50-day SMA
+[2025-01-17] KEY price crossed ABOVE 50-day SMA
+[2025-01-17] KO price crossed ABOVE 50-day SMA
+[2025-01-17] MCK price crossed BELOW 50-day SMA
+[2025-01-17] MCO price crossed BELOW 50-day SMA
+[2025-01-17] MMC price crossed BELOW 200-day SMA
+[2025-01-17] MPWR price crossed ABOVE 50-day SMA
+[2025-01-17] MRK price crossed BELOW 50-day SMA
+[2025-01-17] MSFT price crossed ABOVE 50-day SMA
+[2025-01-17] NCLH price crossed ABOVE 50-day SMA
+[2025-01-17] NOW price crossed ABOVE 50-day SMA
+[2025-01-17] NTAP price crossed ABOVE 50-day SMA
+[2025-01-17] PFG price crossed ABOVE 50-day SMA
+[2025-01-17] PLD price crossed BELOW 50-day SMA
+[2025-01-17] RCL price crossed ABOVE 50-day SMA
+[2025-01-17] RMD price crossed ABOVE 50-day SMA
+[2025-01-17] SNPS price crossed ABOVE 50-day SMA
+[2025-01-17] SPGI price crossed BELOW 50-day SMA
+[2025-01-17] STX price crossed ABOVE 200-day SMA
+[2025-01-17] TFC price crossed ABOVE 50-day SMA
+[2025-01-17] TTWO price crossed ABOVE 50-day SMA
+[2025-01-17] VLTO price crossed BELOW 50-day SMA
+[2025-01-17] WRB price crossed BELOW 50-day SMA
+
+>> Golden / Death Crosses:
+[2025-01-17] LMT DEATH CROSS (50-day SMA below 200-day SMA)
+[2025-01-17] OMC DEATH CROSS (50-day SMA below 200-day SMA)
+[2025-01-17] SBAC DEATH CROSS (50-day SMA below 200-day SMA)
+[2025-01-17] YUM DEATH CROSS (50-day SMA below 200-day SMA)

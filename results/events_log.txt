@@ -1,0 +1,77 @@
+2025-01-20 06:42:14,263 - INFO - START of main program
+2025-01-20 06:42:14,276 - INFO - Tables ensured in DB
+2025-01-20 06:45:07,829 - INFO - START of main program
+2025-01-20 06:45:07,834 - INFO - Tables ensured in DB
+2025-01-20 06:48:44,818 - INFO - Phase plots saved
+2025-01-20 06:48:44,819 - INFO - Starting computation for adv_decline
+2025-01-20 06:48:45,664 - INFO - Inserted adv_decline to DB
+2025-01-20 06:48:46,163 - INFO - Saved adv_decline plots
+2025-01-20 06:48:46,163 - INFO - Starting computation for adv_decline_volume
+2025-01-20 06:48:46,959 - INFO - Inserted adv_decline_volume to DB
+2025-01-20 06:48:46,965 - INFO - Saved adv_decline_volume plots
+2025-01-20 06:48:46,965 - INFO - Starting computation for new_high_low
+2025-01-20 06:48:47,905 - INFO - Inserted new_high_low to DB
+2025-01-20 06:48:47,910 - INFO - Saved new_high_low plots
+2025-01-20 06:48:47,911 - INFO - Starting computation for percent_above_ma
+2025-01-20 06:48:48,743 - INFO - Inserted percent_above_ma to DB
+2025-01-20 06:48:48,749 - INFO - Saved percent_above_ma plots
+2025-01-20 06:48:48,749 - INFO - Starting computation for mcclellan
+2025-01-20 06:48:49,511 - INFO - Inserted mcclellan to DB
+2025-01-20 06:48:49,519 - INFO - Saved mcclellan plots
+2025-01-20 06:48:49,519 - INFO - Starting computation for fear_greed
+2025-01-20 06:48:50,479 - INFO - Inserted fear_greed to DB
+2025-01-20 06:48:50,483 - INFO - Saved fear_greed plots
+2025-01-20 06:48:50,484 - INFO - Starting computation for trend_intensity_index
+2025-01-20 06:48:51,339 - INFO - Inserted trend_intensity_index to DB
+2025-01-20 06:48:51,345 - INFO - Saved trend_intensity_index plots
+2025-01-20 06:48:51,345 - INFO - Starting computation for chaikin_volatility
+2025-01-20 06:48:52,287 - INFO - Inserted chaikin_volatility to DB
+2025-01-20 06:48:52,292 - INFO - Saved chaikin_volatility plots
+2025-01-20 06:48:52,293 - INFO - Starting computation for chaikin_money_flow
+2025-01-20 06:48:53,150 - INFO - Inserted chaikin_money_flow to DB
+2025-01-20 06:48:53,155 - INFO - Saved chaikin_money_flow plots
+2025-01-20 06:48:53,155 - INFO - Starting computation for trin
+2025-01-20 06:48:53,953 - INFO - Inserted trin to DB
+2025-01-20 06:48:53,961 - INFO - Saved trin plots
+2025-01-20 06:48:54,130 - INFO - Saved latest breadth & phase data
+2025-01-20 06:48:54,388 - INFO - Logged phase/indicator changes
+2025-01-20 06:48:54,389 - INFO - Starting sector analysis from 'sector_data'...
+2025-01-20 06:49:00,002 - INFO - Sector analysis complete.
+2025-01-20 06:49:00,003 - INFO - END of main program
+2025-01-20 06:51:25,244 - INFO - START of main program
+2025-01-20 06:51:25,248 - INFO - Tables ensured in DB
+2025-01-20 06:55:18,883 - INFO - Phase plots saved
+2025-01-20 06:55:18,883 - INFO - Starting computation for adv_decline
+2025-01-20 06:55:19,734 - INFO - Inserted adv_decline to DB
+2025-01-20 06:55:20,322 - INFO - Saved adv_decline plots
+2025-01-20 06:55:20,322 - INFO - Starting computation for adv_decline_volume
+2025-01-20 06:55:21,253 - INFO - Inserted adv_decline_volume to DB
+2025-01-20 06:55:21,258 - INFO - Saved adv_decline_volume plots
+2025-01-20 06:55:21,258 - INFO - Starting computation for new_high_low
+2025-01-20 06:55:22,360 - INFO - Inserted new_high_low to DB
+2025-01-20 06:55:22,365 - INFO - Saved new_high_low plots
+2025-01-20 06:55:22,365 - INFO - Starting computation for percent_above_ma
+2025-01-20 06:55:23,253 - INFO - Inserted percent_above_ma to DB
+2025-01-20 06:55:23,257 - INFO - Saved percent_above_ma plots
+2025-01-20 06:55:23,258 - INFO - Starting computation for mcclellan
+2025-01-20 06:55:24,082 - INFO - Inserted mcclellan to DB
+2025-01-20 06:55:24,087 - INFO - Saved mcclellan plots
+2025-01-20 06:55:24,087 - INFO - Starting computation for fear_greed
+2025-01-20 06:55:25,066 - INFO - Inserted fear_greed to DB
+2025-01-20 06:55:25,070 - INFO - Saved fear_greed plots
+2025-01-20 06:55:25,071 - INFO - Starting computation for trend_intensity_index
+2025-01-20 06:55:26,054 - INFO - Inserted trend_intensity_index to DB
+2025-01-20 06:55:26,059 - INFO - Saved trend_intensity_index plots
+2025-01-20 06:55:26,059 - INFO - Starting computation for chaikin_volatility
+2025-01-20 06:55:27,054 - INFO - Inserted chaikin_volatility to DB
+2025-01-20 06:55:27,058 - INFO - Saved chaikin_volatility plots
+2025-01-20 06:55:27,059 - INFO - Starting computation for chaikin_money_flow
+2025-01-20 06:55:27,965 - INFO - Inserted chaikin_money_flow to DB
+2025-01-20 06:55:27,970 - INFO - Saved chaikin_money_flow plots
+2025-01-20 06:55:27,970 - INFO - Starting computation for trin
+2025-01-20 06:55:28,749 - INFO - Inserted trin to DB
+2025-01-20 06:55:28,753 - INFO - Saved trin plots
+2025-01-20 06:55:28,999 - INFO - Saved latest breadth & phase data
+2025-01-20 06:55:29,274 - INFO - Logged phase/indicator changes
+2025-01-20 06:55:29,275 - INFO - Skipping sector analysis (RUN_SECTOR_ANALYSIS=False).
+2025-01-20 06:55:29,276 - INFO - END of main program
