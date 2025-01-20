@@ -122,10 +122,10 @@ def compute_and_store_volume_ma_deviation(data_dict: dict, conn):
     cur.close()
 
 
-def export_extreme_volumes(conn, z_threshold=2.0):
+def export_extreme_volumes(conn):
     """
-    Exports stocks with extreme volume deviations based on z-scores.
-    Only uses rows if dev_20 and dev_63 are non-null in the DB.
+    Exports stocks with extreme volume deviations.
+    Uses config.EXTREME_VOLUME_Z_THRESHOLD for the Z-score threshold.
     """
     cur = conn.cursor()
 
@@ -156,8 +156,6 @@ def export_extreme_volumes(conn, z_threshold=2.0):
 
     # 3) Create a DataFrame
     df = pd.DataFrame(rows, columns=["Ticker", "Dev_20", "Dev_63"])
-
-    # Convert Decimal to float
     df["Dev_20"] = df["Dev_20"].astype(float)
     df["Dev_63"] = df["Dev_63"].astype(float)
 
@@ -165,16 +163,17 @@ def export_extreme_volumes(conn, z_threshold=2.0):
     df["Dev_20_Z"] = (df["Dev_20"] - df["Dev_20"].mean()) / df["Dev_20"].std()
     df["Dev_63_Z"] = (df["Dev_63"] - df["Dev_63"].mean()) / df["Dev_63"].std()
 
-    # Filter stocks based on z_threshold
+    # Use threshold from config
+    z_thresh = config.EXTREME_VOLUME_Z_THRESHOLD
     extremes = df[
-        (df["Dev_20_Z"].abs() >= z_threshold) | (df["Dev_63_Z"].abs() >= z_threshold)
+        (df["Dev_20_Z"].abs() >= z_thresh) | (df["Dev_63_Z"].abs() >= z_thresh)
     ]
 
     # 4) Write results to a file
     if not extremes.empty:
         file_name = os.path.join(config.RESULTS_DIR, f"extreme_volume_stocks_{last_date}.txt")
         with open(file_name, "w") as f:
-            f.write(f"Extreme Volume Stocks for {last_date} (Z-Threshold: {z_threshold}):\n\n")
+            f.write(f"Extreme Volume Stocks for {last_date} (Z-Threshold: {z_thresh}):\n\n")
             for _, row in extremes.iterrows():
                 f.write(
                     f"{row['Ticker']}: Dev_20_Z = {row['Dev_20_Z']:.2f}, "
@@ -182,4 +181,4 @@ def export_extreme_volumes(conn, z_threshold=2.0):
                 )
         logging.info(f"Extreme volume file created: {file_name}")
     else:
-        logging.info(f"No stocks exceeded z-threshold {z_threshold} on {last_date}.")
+        logging.info(f"No stocks exceeded z-threshold {z_thresh} on {last_date}.")

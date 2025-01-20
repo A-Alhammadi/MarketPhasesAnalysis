@@ -353,16 +353,19 @@ def batch_fetch_sector_data(tickers: List[str], conn) -> Dict[str, pd.DataFrame]
                     logging.error(f"Error loading sector_data for {ticker}: {e}")
     return data_dict
 
-
-def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_sma_changes_file="price_sma_changes.txt"):
+def detect_and_log_changes(conn):
     """
     1) Detect any ticker that changes its phase (old -> new).
     2) Detect price crossing above/below SMA_50 or SMA_200.
     3) Detect golden/death crosses (SMA_50 crossing SMA_200).
-    Results are written to separate files.
+
+    Results are written to two files, read from config:
+      config.PHASE_CHANGES_FILE
+      config.PRICE_SMA_CHANGES_FILE
     """
-    import pandas as pd
-    
+    phase_changes_file = config.PHASE_CHANGES_FILE
+    price_sma_changes_file = config.PRICE_SMA_CHANGES_FILE
+
     query = """
         SELECT ticker, data_date, close, sma_50, sma_200, phase
         FROM phase_details
@@ -398,10 +401,12 @@ def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_s
         date_ = row["data_date"]
         old_phase = row["prev_phase"]
         new_phase = row["phase"]
-        
-        # 1) Phase change
+
+        # 1) Phase change detection
         if pd.notna(old_phase) and pd.notna(new_phase) and (old_phase != new_phase):
-            phase_changes.append(f"[{date_}] {ticker} changed phase from {old_phase} to {new_phase}")
+            phase_changes.append(
+                f"[{date_}] {ticker} changed phase from {old_phase} to {new_phase}"
+            )
         
         # 2) Price crossing above/below 50 or 200
         c_now = row["close"]
@@ -411,24 +416,39 @@ def detect_and_log_changes(conn, phase_changes_file="phase_changes.txt", price_s
         sma200_now = row["sma_200"]
         sma200_prev = row["prev_sma_200"]
         
-        if pd.notna(c_now) and pd.notna(c_prev) and pd.notna(sma50_now) and pd.notna(sma50_prev):
+        if (pd.notna(c_now) and pd.notna(c_prev) 
+            and pd.notna(sma50_now) and pd.notna(sma50_prev)):
             if (c_prev < sma50_prev) and (c_now > sma50_now):
-                price_sma_crosses.append(f"[{date_}] {ticker} price crossed ABOVE 50-day SMA")
+                price_sma_crosses.append(
+                    f"[{date_}] {ticker} price crossed ABOVE 50-day SMA"
+                )
             if (c_prev > sma50_prev) and (c_now < sma50_now):
-                price_sma_crosses.append(f"[{date_}] {ticker} price crossed BELOW 50-day SMA")
+                price_sma_crosses.append(
+                    f"[{date_}] {ticker} price crossed BELOW 50-day SMA"
+                )
         
-        if pd.notna(c_now) and pd.notna(c_prev) and pd.notna(sma200_now) and pd.notna(sma200_prev):
+        if (pd.notna(c_now) and pd.notna(c_prev) 
+            and pd.notna(sma200_now) and pd.notna(sma200_prev)):
             if (c_prev < sma200_prev) and (c_now > sma200_now):
-                price_sma_crosses.append(f"[{date_}] {ticker} price crossed ABOVE 200-day SMA")
+                price_sma_crosses.append(
+                    f"[{date_}] {ticker} price crossed ABOVE 200-day SMA"
+                )
             if (c_prev > sma200_prev) and (c_now < sma200_now):
-                price_sma_crosses.append(f"[{date_}] {ticker} price crossed BELOW 200-day SMA")
+                price_sma_crosses.append(
+                    f"[{date_}] {ticker} price crossed BELOW 200-day SMA"
+                )
         
         # 3) Golden / Death Cross
-        if pd.notna(sma50_now) and pd.notna(sma50_prev) and pd.notna(sma200_now) and pd.notna(sma200_prev):
+        if (pd.notna(sma50_now) and pd.notna(sma50_prev) 
+            and pd.notna(sma200_now) and pd.notna(sma200_prev)):
             if (sma50_prev < sma200_prev) and (sma50_now > sma200_now):
-                golden_death_crosses.append(f"[{date_}] {ticker} GOLDEN CROSS (50-day SMA above 200-day SMA)")
+                golden_death_crosses.append(
+                    f"[{date_}] {ticker} GOLDEN CROSS (50-day SMA above 200-day SMA)"
+                )
             if (sma50_prev > sma200_prev) and (sma50_now < sma200_now):
-                golden_death_crosses.append(f"[{date_}] {ticker} DEATH CROSS (50-day SMA below 200-day SMA)")
+                golden_death_crosses.append(
+                    f"[{date_}] {ticker} DEATH CROSS (50-day SMA below 200-day SMA)"
+                )
     
     # Write phase changes
     with open(phase_changes_file, "w") as f:

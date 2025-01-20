@@ -47,6 +47,31 @@ PERIODS = {
     "3Y": 3,
     "1Y": 1
 }
+# Log files for phase and price/SMA changes
+PHASE_CHANGES_FILE = "phase_changes.txt"
+PRICE_SMA_CHANGES_FILE = "price_sma_changes.txt"
+
+# Z-score threshold for extreme volume detection
+EXTREME_VOLUME_Z_THRESHOLD = 2.0
+
+# Toggle whether sector analysis runs in main.py
+RUN_SECTOR_ANALYSIS = True
+
+# The list of sector tickers for run_sector_analysis
+SECTOR_TICKERS = [
+    "SPY",   # Benchmark
+    "XLB",   # Materials
+    "XLC",   # Communication Services
+    "XLE",   # Energy
+    "XLF",   # Financials
+    "XLI",   # Industrials
+    "XLK",   # Technology
+    "XLP",   # Consumer Staples
+    "XLU",   # Utilities
+    "XLV",   # Health Care
+    "XLY",   # Consumer Discretionary
+    "XLRE"   # Real Estate
+]
 
 # ====================
 # MOVING AVERAGES

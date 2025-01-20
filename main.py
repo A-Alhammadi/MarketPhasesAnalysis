@@ -84,21 +84,19 @@ def stop_profiler():
 def main():
     """
     Main execution flow:
-      1) Create tables if not found (including 'sector_data').
+      1) Create tables if not found (including sector_data).
       2) Get list of tickers (e.g., S&P 500).
-      3) Fetch existing data from DB for those tickers (from price_data).
+      3) Fetch existing data from DB for those tickers (price_data).
       4) Compute & store volume MAs (10,20).
       5) Compute & store price % dev (50/200).
       6) Compute & store volume % dev (20/63).
       7) Classify phases & store => also do plots.
       8) Compute other indicators & store => also do plots.
-      9) Export "extreme volume" file.
+      9) Export "extreme volume" file (uses config.EXTREME_VOLUME_Z_THRESHOLD).
       10) Save "latest breadth" text.
-      11) Detect/log changes (phase, SMA crosses).
-      12) Sector analysis from 'sector_data':
-          - daily returns, cumulative returns,
-          - rolling correlation vs SPY, relative performance,
-          - correlation heatmap of all ETFs.
+      11) Detect/log changes (phase, SMA crosses) -> writes to config.PHASE_CHANGES_FILE,
+          config.PRICE_SMA_CHANGES_FILE.
+      12) Sector analysis from 'sector_data' (optional, controlled by config.RUN_SECTOR_ANALYSIS).
     """
 
     if not os.path.exists(config.RESULTS_DIR):
@@ -132,7 +130,7 @@ def main():
 
         db_pool.monitor_pool()
 
-        # 1) Ensure all necessary tables (including a clean sector_analysis) are created
+        # 1) Ensure all necessary tables are created
         create_tables(conn)
         events_logger.info("Tables ensured in DB")
 
@@ -164,7 +162,6 @@ def main():
         compute_and_store_volume_ma_deviation(data_dict, conn)
 
         # 7) Classify phases
-        phases = ["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"]
         df_phases_detail, df_phases_daily = classify_phases(
             data_dict,
             ma_short=config.MA_SHORT,
@@ -176,13 +173,18 @@ def main():
             logging.warning("Phase classification is empty. Skipping phase plots.")
             events_logger.warning("No phases data - skipping.")
         else:
+            # Write daily phases to an 'indicator_data' style table if desired
             write_indicator_data_to_db(df_phases_daily, "phase_classification", conn)
             write_phase_details_to_db(df_phases_detail, conn)
 
+            # For plotting
             df_phases_daily.index = pd.to_datetime(df_phases_daily.index, errors="coerce")
             df_phases_resampled = df_phases_daily.resample(config.PHASE_PLOT_INTERVAL).last()
 
-            save_phase_plots(phases, df_phases_resampled)
+            save_phase_plots(
+                phases=["Bullish", "Caution", "Distribution", "Bearish", "Recuperation", "Accumulation"],
+                df_phases=df_phases_resampled
+            )
             save_phases_breakdown(df_phases_daily, df_phases_resampled)
             events_logger.info("Phase plots saved")
 
@@ -214,9 +216,11 @@ def main():
                 events_logger.warning(f"{indicator_name} is empty.")
                 continue
 
+            # Store results in DB
             write_indicator_data_to_db(result_df_daily, indicator_name, conn)
             events_logger.info(f"Inserted {indicator_name} to DB")
 
+            # Plot
             result_df_daily.index = pd.to_datetime(result_df_daily.index, errors="coerce")
             if not isinstance(result_df_daily.index, pd.DatetimeIndex) or result_df_daily.index.hasnans:
                 logging.warning(f"{indicator_name} index invalid. Skipping plot.")
@@ -229,7 +233,7 @@ def main():
             computed_indicators[indicator_name] = result_df_daily
 
         # 9) Extreme volume
-        export_extreme_volumes(conn, z_threshold=2.0)
+        export_extreme_volumes(conn)  # uses config.EXTREME_VOLUME_Z_THRESHOLD internally
 
         # 10) Save latest breadth
         save_latest_breadth_values(
@@ -239,34 +243,17 @@ def main():
         )
         events_logger.info("Saved latest breadth & phase data")
 
-        # 11) Detect changes
-        detect_and_log_changes(
-            conn,
-            phase_changes_file=os.path.join(config.RESULTS_DIR, "phase_changes.txt"),
-            price_sma_changes_file=os.path.join(config.RESULTS_DIR, "price_sma_changes.txt")
-        )
+        # 11) Detect changes => writes to config.PHASE_CHANGES_FILE and config.PRICE_SMA_CHANGES_FILE
+        detect_and_log_changes(conn)
         events_logger.info("Logged phase/indicator changes")
 
-        # 12) Sector analysis from 'sector_data'
-        # Here we list SPY plus all 11 Select Sector SPDRs:
-        #   XLB, XLC, XLE, XLF, XLI, XLK, XLP, XLU, XLV, XLY, XLRE
-        etf_list = [
-            "SPY",   # Benchmark
-            "XLB",   # Materials
-            "XLC",   # Communication Services
-            "XLE",   # Energy
-            "XLF",   # Financials
-            "XLI",   # Industrials
-            "XLK",   # Technology
-            "XLP",   # Consumer Staples
-            "XLU",   # Utilities
-            "XLV",   # Health Care
-            "XLY",   # Consumer Discretionary
-            "XLRE"   # Real Estate
-        ]
-        events_logger.info("Starting sector analysis from 'sector_data' with all 11 sectors + SPY...")
-        run_sector_analysis(conn, etf_list)
-        events_logger.info("Sector analysis complete.")
+        # 12) Sector analysis
+        if config.RUN_SECTOR_ANALYSIS:
+            events_logger.info("Starting sector analysis from 'sector_data'...")
+            run_sector_analysis(conn, config.SECTOR_TICKERS)
+            events_logger.info("Sector analysis complete.")
+        else:
+            events_logger.info("Skipping sector analysis (RUN_SECTOR_ANALYSIS=False).")
 
         logging.info("All tasks completed successfully.")
         events_logger.info("END of main program")
